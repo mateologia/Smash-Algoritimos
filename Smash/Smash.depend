@@ -1,0 +1,11 @@
+# depslib dependency file v1.0
+1793713750 source:c:\users\mateo alfonso\desktop\smash\combate.c
+	"combate.h"
+
+1793713750 c:\users\mateo alfonso\desktop\smash\combate.h
+	"definicoes.h"
+
+1793713750 c:\users\mateo alfonso\desktop\smash\definicoes.h
+	"raylib.h"
+	<stdbool.h>
+
