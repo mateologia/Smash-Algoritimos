@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "name": "macOS",
+            "includePath": [
+                "${workspaceFolder}/Smash/**",
+                "/opt/homebrew/opt/raylib/include",
+                "/usr/local/opt/raylib/include"
+            ],
+            "compilerPath": "/usr/bin/cc",
+            "cStandard": "c99",
+            "intelliSenseMode": "macos-clang-arm64"
+        }
+    ],
+    "version": 4
+}
