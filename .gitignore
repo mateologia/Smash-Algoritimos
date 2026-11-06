@@ -1,0 +1,51 @@
+# Compiled Binaries & Executables
+*.exe
+*.out
+*.app
+*.elf
+*.bin
+
+# Intermediary Build Artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.pdb
+
+# Build Directories
+build/
+bin/
+obj/
+out/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+*.cmake
+
+# Visual Studio / MSBuild
+.vs/
+*.sln
+*.vcxproj
+*.user
+*.suo
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# CLion / IntelliJ
+.idea/
+cmake-build-*/
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
