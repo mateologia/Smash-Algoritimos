@@ -10,7 +10,7 @@ int main(void) {
     InicializarPersonagens(&p1, &p2);
 
     while (!WindowShouldClose()) {
-        // --- ATUALIZAÇÃO ---
+        // --- ATUALIZAï¿½ï¿½O ---
         AtualizarControles(&p1);
         AtualizarControles(&p2);
 
@@ -30,10 +30,10 @@ int main(void) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        // Cenário / Chão
+        // Cenï¿½rio / Chï¿½o
         DrawLine(0, CHAO_Y, SCREEN_WIDTH, CHAO_Y, DARKGRAY);
 
-        // Renderização dos lutadores em modo debug
+        // Renderizaï¿½ï¿½o dos lutadores em modo debug
         DesenharPersonagemDebug(&p1);
         DesenharPersonagemDebug(&p2);
 
@@ -48,9 +48,9 @@ int main(void) {
         DrawRectangleLines(SCREEN_WIDTH - 350, 40, 300, 25, BLACK);
         DrawText(TextFormat("P2 HP: %d", p2.hp), SCREEN_WIDTH - 150, 70, 20, RED);
 
-        // Instruções na tela
-        DrawText("P1: A/D (mover), J (soco), K (chute)", 50, SCREEN_HEIGHT - 40, 16, DARKGRAY);
-        DrawText("P2: Setas (mover), KP_4 (soco), KP_5 (chute) | R: Reset", SCREEN_WIDTH - 460, SCREEN_HEIGHT - 40, 16, DARKGRAY);
+        // Instruï¿½ï¿½es na tela
+        DrawText("P1: A/D (mover), C (soco), V (chute)", 50, SCREEN_HEIGHT - 40, 16, DARKGRAY);
+        DrawText("P2: Setas (mover), N (soco), M (chute) | R: Reset", SCREEN_WIDTH - 460, SCREEN_HEIGHT - 40, 16, DARKGRAY);
 
         if (p1.estado == ESTADO_KO) DrawText("P2 VENCEU!", SCREEN_WIDTH / 2 - 80, 200, 30, RED);
         if (p2.estado == ESTADO_KO) DrawText("P1 VENCEU!", SCREEN_WIDTH / 2 - 80, 200, 30, BLUE);
