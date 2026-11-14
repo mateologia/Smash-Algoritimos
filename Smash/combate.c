@@ -1,7 +1,11 @@
 #include "combate.h"
+#include <string.h>
 
 void InicializarPersonagens(Personagem *p1, Personagem *p2)
 {
+    memset(p1, 0, sizeof(*p1));
+    memset(p2, 0, sizeof(*p2));
+
     // Configuração Jogador 1
     p1->id = 1;
     p1->posicao = (Vector2){250.0f, CHAO_Y};
@@ -11,13 +15,13 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     p1->hitboxAtiva = false;
     p1->temporizador = 0;
     p1->cor = BLUE;
-    p1->controlos = (MapeamentoTeclas){
+    p1->controles = (MapeamentoTeclas){
         .esquerda = KEY_A,
         .direita = KEY_D,
         .soco = KEY_C,
         .chute = KEY_V};
 
-    // Configura��o Jogador 2
+    // Configuração Jogador 2
     p2->id = 2;
     p2->posicao = (Vector2){750.0f, CHAO_Y};
     p2->hp = HP_MAX;
@@ -26,7 +30,7 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     p2->hitboxAtiva = false;
     p2->temporizador = 0;
     p2->cor = RED;
-    p2->controlos = (MapeamentoTeclas){
+    p2->controles = (MapeamentoTeclas){
         .esquerda = KEY_LEFT,
         .direita = KEY_RIGHT,
         .soco = KEY_N,
@@ -38,10 +42,12 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
 
 void AtualizarControles(Personagem *p)
 {
+    p->direcaoMovimento = 0;
+
     if (p->estado == ESTADO_KO)
         return;
 
-    // Se estiver em anima��o de dano (Hitstun)
+    // Se estiver em animação de dano (Hitstun)
     if (p->estado == ESTADO_HIT)
     {
         p->temporizador--;
@@ -75,33 +81,33 @@ void AtualizarControles(Personagem *p)
     }
 
     // Prioridade para acionar novos ataques
-    if (IsKeyPressed(p->controlos.soco))
+    if (IsKeyPressed(p->controles.soco))
     {
         p->estado = ESTADO_ATACANDO_SOCO;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
-    if (IsKeyPressed(p->controlos.chute))
+    if (IsKeyPressed(p->controles.chute))
     {
         p->estado = ESTADO_ATACANDO_CHUTE;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
 
-    // Movimenta��o horizontal
-    bool movendo = false;
-    if (IsKeyDown(p->controlos.esquerda))
+    // Movimentação horizontal
+    int direcaoHorizontal = 0;
+    if (IsKeyDown(p->controles.esquerda))
+        direcaoHorizontal -= 1;
+    if (IsKeyDown(p->controles.direita))
+        direcaoHorizontal += 1;
+
+    if (direcaoHorizontal != 0)
     {
-        p->posicao.x -= VELOCIDADE_PADRAO;
-        movendo = true;
-    }
-    if (IsKeyDown(p->controlos.direita))
-    {
-        p->posicao.x += VELOCIDADE_PADRAO;
-        movendo = true;
+        p->posicao.x += VELOCIDADE_PADRAO * (float)direcaoHorizontal;
+        p->direcaoMovimento = direcaoHorizontal;
     }
 
-    p->estado = movendo ? ESTADO_ANDANDO : ESTADO_IDLE;
+    p->estado = (direcaoHorizontal != 0) ? ESTADO_ANDANDO : ESTADO_IDLE;
 
     // Limites da tela
     float margem = LARGURA_CORPO / 2.0f;
@@ -113,7 +119,7 @@ void AtualizarControles(Personagem *p)
 
 void AtualizarOrientacao(Personagem *p1, Personagem *p2)
 {
-    // Apenas atualiza a dire��o se n�o estiverem no meio de um ataque
+    // Apenas atualiza a direção se não estiverem no meio de um ataque
     if (p1->estado != ESTADO_ATACANDO_SOCO && p1->estado != ESTADO_ATACANDO_CHUTE)
     {
         p1->direcao = (p1->posicao.x < p2->posicao.x) ? OLHANDO_DIREITA : OLHANDO_ESQUERDA;
@@ -133,7 +139,7 @@ void AtualizarCaixas(Personagem *p)
         LARGURA_CORPO,
         ALTURA_CORPO};
 
-    // Hitbox: projetada � frente na dire��o em que o jogador est� virado
+    // Hitbox: projetada à frente na direção em que o jogador está virado
     float ataqueX = (p->direcao == OLHANDO_DIREITA)
                         ? (p->posicao.x + (LARGURA_CORPO / 2.0f))
                         : (p->posicao.x - (LARGURA_CORPO / 2.0f) - LARGURA_HITBOX);
@@ -152,10 +158,9 @@ void AtualizarCaixas(Personagem *p)
 
 void ProcessarColisoes(Personagem *p1, Personagem *p2)
 {
-    // 1. Bloqueio de sobreposi��o de corpos
+    // 1. Bloqueio de sobreposição de corpos
     if (CheckCollisionRecs(p1->hurtbox, p2->hurtbox))
     {
-        float sobreposicao = (p1->hurtbox.x + p1->hurtbox.width) - p2->hurtbox.x;
         if (p1->posicao.x < p2->posicao.x)
         {
             p1->posicao.x -= 2.0f;
@@ -177,7 +182,7 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
         p2->hp -= dano;
         p2->estado = ESTADO_HIT;
         p2->temporizador = TEMPO_HIT;
-        p1->hitboxAtiva = false; // Desativa para n�o dar dano cont�nuo em frames subsequentes
+        p1->hitboxAtiva = false; // Desativa para não dar dano contínuo em frames subsequentes
 
         if (p2->hp <= 0)
         {
@@ -200,28 +205,5 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
             p1->hp = 0;
             p1->estado = ESTADO_KO;
         }
-    }
-}
-
-void DesenharPersonagemDebug(const Personagem *p)
-{
-    // Hurtbox (Corpo)
-    Color corCorpo = p->cor;
-    if (p->estado == ESTADO_HIT)
-        corCorpo = ORANGE;
-    if (p->estado == ESTADO_KO)
-        corCorpo = DARKGRAY;
-    DrawRectangleRec(p->hurtbox, corCorpo);
-    DrawRectangleLinesEx(p->hurtbox, 2, BLACK);
-
-    // Indicador da dire��o dos olhos/frente
-    float olhoX = (p->direcao == OLHANDO_DIREITA) ? (p->posicao.x + 15.0f) : (p->posicao.x - 25.0f);
-    DrawRectangle(olhoX, p->posicao.y - ALTURA_CORPO + 15.0f, 10, 10, WHITE);
-
-    // Hitbox (se estiver ativa durante um golpe)
-    if (p->hitboxAtiva)
-    {
-        DrawRectangleRec(p->hitbox, Fade(YELLOW, 0.6f));
-        DrawRectangleLinesEx(p->hitbox, 2, RED);
     }
 }

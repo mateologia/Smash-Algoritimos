@@ -2,6 +2,7 @@
 #define DEFINICOES_H
 
 #include "raylib.h"
+#include "animacao.h"
 #include <stdbool.h>
 
 #define SCREEN_WIDTH 1000
@@ -19,10 +20,13 @@
 #define DANO_SOCO 10
 #define DANO_CHUTE 15
 
-#define TEMPO_ATAQUE 18 // DuraÁ„o total do ataque em frames (~300ms a 60 FPS)
-#define TEMPO_HIT 12    // DuraÁ„o do atordoamento ao levar golpe
+#define TEMPO_ATAQUE 18 // Dura√ß√£o total do ataque em frames (~300ms a 60 FPS)
+#define TEMPO_HIT 12    // Dura√ß√£o do atordoamento ao levar golpe
 
-typedef enum {
+struct VisualPersonagem;
+
+typedef enum
+{
     ESTADO_IDLE = 0,
     ESTADO_ANDANDO,
     ESTADO_ATACANDO_SOCO,
@@ -31,32 +35,39 @@ typedef enum {
     ESTADO_KO
 } EstadoPersonagem;
 
-typedef enum {
+typedef enum
+{
     OLHANDO_DIREITA = 1,
     OLHANDO_ESQUERDA = -1
 } DirecaoOlhar;
 
-typedef struct {
+typedef struct
+{
     KeyboardKey esquerda;
     KeyboardKey direita;
     KeyboardKey soco;
     KeyboardKey chute;
 } MapeamentoTeclas;
 
-typedef struct {
+typedef struct
+{
     int id;
-    Vector2 posicao; // PosiÁ„o base (pÈ do personagem: x centralizado, y no ch„o)
+    Vector2 posicao; // Posi√ß√£o base (p√© do personagem: x centralizado, y no ch√£o)
     int hp;
     EstadoPersonagem estado;
     DirecaoOlhar direcao;
+    int direcaoMovimento; // -1 = esquerda, 0 = parado, +1 = direita
 
     Rectangle hurtbox;
     Rectangle hitbox;
     bool hitboxAtiva;
 
     int temporizador;
-    MapeamentoTeclas controlos;
+    MapeamentoTeclas controles;
     Color cor;
+    struct VisualPersonagem *visual;
+
+    Animador animador;
 } Personagem;
 
 #endif

@@ -68,7 +68,7 @@ RAYLIB_LIBS=${USER_RAYLIB_LIBS:-$RAYLIB_LIBS}
 mkdir -p build
 set -f
 set -- "$COMPILER" -std=c99 -Wall -Wextra -Wpedantic \
-    Smash/main.c Smash/combate.c
+    Smash/main.c Smash/combate.c Smash/animacao.c Smash/visual_personagem.c
 if [ -n "$RAYLIB_CFLAGS" ]; then
     set -- "$@" $RAYLIB_CFLAGS
 fi

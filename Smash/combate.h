@@ -8,6 +8,5 @@ void AtualizarControles(Personagem *p);
 void AtualizarOrientacao(Personagem *p1, Personagem *p2);
 void AtualizarCaixas(Personagem *p);
 void ProcessarColisoes(Personagem *p1, Personagem *p2);
-void DesenharPersonagemDebug(const Personagem *p);
 
 #endif

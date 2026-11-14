@@ -42,6 +42,14 @@
 		</Unit>
 		<Unit filename="combate.h" />
 		<Unit filename="definicoes.h" />
+		<Unit filename="animacao.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="animacao.h" />
+		<Unit filename="visual_personagem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="visual_personagem.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
