@@ -23,7 +23,18 @@
 #define TEMPO_ATAQUE 18 // Duração total do ataque em frames (~300ms a 60 FPS)
 #define TEMPO_HIT 12    // Duração do atordoamento ao levar golpe
 
+#define NUM_PERSONAGENS 2
+#define ROUNDS_PARA_VENCER 2
+
+
 struct VisualPersonagem;
+
+typedef enum {
+    TELA_MENU = 0,
+    TELA_SELECAO,
+    TELA_COMBATE,
+    TELA_VITORIA
+} TelaJogo;
 
 typedef enum
 {
@@ -69,5 +80,18 @@ typedef struct
 
     Animador animador;
 } Personagem;
+
+typedef struct
+{
+    TelaJogo telaAtual;
+    int opcaoMenu;      // 0: Novo Jogo, 1: Sair
+    int selecaoP1;      // Índice do lutador escolhido pelo P1 (0 ou 1)
+    int selecaoP2;      // Índice do lutador escolhido pelo P2 (0 ou 1)
+    bool prontoP1;
+    bool prontoP2;
+    int roundsP1;
+    int roundsP2;
+    bool sairJogo;
+} EstadoJogo;
 
 #endif

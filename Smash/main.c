@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "definicoes.h"
 #include "combate.h"
+#include "jogo.h"
 #include "visual_personagem.h"
 
 static const DefinicaoFolhaSprite FOLHAS_DIO[] = {
@@ -60,95 +61,152 @@ static const ConfiguracaoVisualPersonagem VISUAL_DIO = {
     .direcaoArte = OLHANDO_DIREITA,
 };
 
+// Função auxiliar para vincular os sprites carregados aos personagens após inicializá-los
+static void AplicarVisuaisSelecionados(const EstadoJogo *estado, Personagem *p1, Personagem *p2, VisualPersonagem *visualDio)
+{
+    if (visualDio->carregado)
+    {
+        if (estado->selecaoP1 == 0)
+        {
+            VincularVisualPersonagem(p1, visualDio);
+        }
+        if (estado->selecaoP2 == 0)
+        {
+            VincularVisualPersonagem(p2, visualDio);
+        }
+    }
+}
+
 int main(void)
 {
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Jogo de Luta 2D - Teste de Comandos");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Jogo de Luta 2D - INF01202");
     SetTargetFPS(TARGET_FPS);
+
+    EstadoJogo estado;
+    InicializarEstadoJogo(&estado);
 
     Personagem p1 = {0}, p2 = {0};
     VisualPersonagem visualDio = {0};
 
     InicializarPersonagens(&p1, &p2);
 
-    if (CarregarVisualPersonagem(&visualDio, &VISUAL_DIO))
+    if (!CarregarVisualPersonagem(&visualDio, &VISUAL_DIO))
     {
-        VincularVisualPersonagem(&p1, &visualDio);
-    }
-    else
-    {
-        TraceLog(LOG_WARNING, "P1 vai usar o retangulo de debug (sprite nao carregado)");
+        TraceLog(LOG_WARNING, "Sprite nao carregado - fallback para retangulo de debug");
     }
 
     bool mostrarCaixas = true;
 
-    while (!WindowShouldClose())
+    while (!WindowShouldClose() && !estado.sairJogo)
     {
-        // --- ATUALIZAÇÃO ---
-        AtualizarControles(&p1);
-        AtualizarControles(&p2);
-
-        AtualizarOrientacao(&p1, &p2);
-
-        AtualizarCaixas(&p1);
-        AtualizarCaixas(&p2);
-
-        ProcessarColisoes(&p1, &p2);
-
         float deltaTime = GetFrameTime();
-        AtualizarVisualPersonagem(&p1, deltaTime);
-        AtualizarVisualPersonagem(&p2, deltaTime);
 
-        if (IsKeyPressed(KEY_F1))
+        // --- ATUALIZAÇÃO POR TELA ---
+        switch (estado.telaAtual)
         {
-            mostrarCaixas = !mostrarCaixas;
+            case TELA_MENU:
+                AtualizarMenu(&estado);
+                break;
+
+            case TELA_SELECAO:
+                AtualizarSelecao(&estado, &p1, &p2);
+                // Assim que a seleção confirmar e mudar para a tela de combate, vincula o sprite
+                if (estado.telaAtual == TELA_COMBATE)
+                {
+                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
+                }
+                break;
+
+            case TELA_COMBATE:
+                AtualizarControles(&p1);
+                AtualizarControles(&p2);
+
+                AtualizarOrientacao(&p1, &p2);
+
+                AtualizarCaixas(&p1);
+                AtualizarCaixas(&p2);
+
+                ProcessarColisoes(&p1, &p2);
+
+                AtualizarVisualPersonagem(&p1, deltaTime);
+                AtualizarVisualPersonagem(&p2, deltaTime);
+
+                if (IsKeyPressed(KEY_F1))
+                {
+                    mostrarCaixas = !mostrarCaixas;
+                }
+
+                // Reiniciar luta atual se apertar 'R'
+                if (IsKeyPressed(KEY_R))
+                {
+                    InicializarPersonagens(&p1, &p2);
+                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
+                }
+
+                // Retorna ao menu principal se alguém vencer e apertar ENTER
+                if ((p1.estado == ESTADO_KO || p2.estado == ESTADO_KO) && IsKeyPressed(KEY_ENTER))
+                {
+                    estado.telaAtual = TELA_MENU;
+                }
+                break;
+
+            default:
+                break;
         }
 
-        // Reiniciar se apertar 'R'
-        if (IsKeyPressed(KEY_R))
-        {
-            InicializarPersonagens(&p1, &p2);
-            if (visualDio.carregado)
-            {
-                VincularVisualPersonagem(&p1, &visualDio);
-            }
-        }
-
-        // --- DESENHO ---
+        // --- DESENHO POR TELA ---
         BeginDrawing();
-        ClearBackground(RAYWHITE);
 
-        // Cenário / Chão
-        DrawLine(0, CHAO_Y, SCREEN_WIDTH, CHAO_Y, DARKGRAY);
-
-        // Renderização dos lutadores
-        DesenharPersonagem(&p1);
-        DesenharPersonagem(&p2);
-
-        if (mostrarCaixas)
+        switch (estado.telaAtual)
         {
-            DesenharPersonagemDebug(&p1);
-            DesenharPersonagemDebug(&p2);
+            case TELA_MENU:
+                DesenharMenu(&estado);
+                break;
+
+            case TELA_SELECAO:
+                DesenharSelecao(&estado);
+                break;
+
+            case TELA_COMBATE:
+                ClearBackground(RAYWHITE);
+
+                // Cenário / Chão
+                DrawLine(0, CHAO_Y, SCREEN_WIDTH, CHAO_Y, DARKGRAY);
+
+                // Renderização dos lutadores
+                DesenharPersonagem(&p1);
+                DesenharPersonagem(&p2);
+
+                if (mostrarCaixas)
+                {
+                    DesenharPersonagemDebug(&p1);
+                    DesenharPersonagemDebug(&p2);
+                }
+
+                // HUD simples: Barras de Vida
+                DrawRectangle(50, 40, 300, 25, LIGHTGRAY);
+                DrawRectangle(50, 40, 3 * p1.hp, 25, GREEN);
+                DrawRectangleLines(50, 40, 300, 25, BLACK);
+                DrawText(TextFormat("P1 HP: %d", p1.hp), 50, 70, 20, BLUE);
+
+                DrawRectangle(SCREEN_WIDTH - 350, 40, 300, 25, LIGHTGRAY);
+                DrawRectangle(SCREEN_WIDTH - 50 - (3 * p2.hp), 40, 3 * p2.hp, 25, GREEN);
+                DrawRectangleLines(SCREEN_WIDTH - 350, 40, 300, 25, BLACK);
+                DrawText(TextFormat("P2 HP: %d", p2.hp), SCREEN_WIDTH - 150, 70, 20, RED);
+
+                // Instruções na tela
+                DrawText("P1: A/D (mover), C (soco), V (chute)", 50, SCREEN_HEIGHT - 40, 16, DARKGRAY);
+                DrawText("P2: Setas (mover), N (soco), M (chute) | R: Reset | F1: caixas", SCREEN_WIDTH - 520, SCREEN_HEIGHT - 40, 16, DARKGRAY);
+
+                if (p1.estado == ESTADO_KO)
+                    DrawText("P2 VENCEU! ENTER: Menu | R: Revanche", SCREEN_WIDTH / 2 - 220, 200, 24, RED);
+                if (p2.estado == ESTADO_KO)
+                    DrawText("P1 VENCEU! ENTER: Menu | R: Revanche", SCREEN_WIDTH / 2 - 220, 200, 24, BLUE);
+                break;
+
+            default:
+                break;
         }
-
-        // HUD simples: Barras de Vida
-        DrawRectangle(50, 40, 300, 25, LIGHTGRAY);
-        DrawRectangle(50, 40, 3 * p1.hp, 25, GREEN);
-        DrawRectangleLines(50, 40, 300, 25, BLACK);
-        DrawText(TextFormat("P1 HP: %d", p1.hp), 50, 70, 20, BLUE);
-
-        DrawRectangle(SCREEN_WIDTH - 350, 40, 300, 25, LIGHTGRAY);
-        DrawRectangle(SCREEN_WIDTH - 50 - (3 * p2.hp), 40, 3 * p2.hp, 25, GREEN);
-        DrawRectangleLines(SCREEN_WIDTH - 350, 40, 300, 25, BLACK);
-        DrawText(TextFormat("P2 HP: %d", p2.hp), SCREEN_WIDTH - 150, 70, 20, RED);
-
-        // Instruções na tela
-        DrawText("P1: A/D (mover), C (soco), V (chute)", 50, SCREEN_HEIGHT - 40, 16, DARKGRAY);
-        DrawText("P2: Setas (mover), N (soco), M (chute) | R: Reset | F1: caixas", SCREEN_WIDTH - 520, SCREEN_HEIGHT - 40, 16, DARKGRAY);
-
-        if (p1.estado == ESTADO_KO)
-            DrawText("P2 VENCEU!", SCREEN_WIDTH / 2 - 80, 200, 30, RED);
-        if (p2.estado == ESTADO_KO)
-            DrawText("P1 VENCEU!", SCREEN_WIDTH / 2 - 80, 200, 30, BLUE);
 
         EndDrawing();
     }
