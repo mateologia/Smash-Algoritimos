@@ -16,5 +16,6 @@ void DesenharHUDRounds(const EstadoJogo *estado);
 void AtualizarVitoria(EstadoJogo *estado);
 void DesenharVitoria(const EstadoJogo *estado);
 void DescarregarRecursosJogo(EstadoJogo *estado);
+const char *ObterNomeLutador(int id);
 
 #endif

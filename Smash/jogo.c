@@ -7,8 +7,8 @@ static const char *NOMES_LUTADORES[NUM_PERSONAGENS] = {
 };
 
 static const Color CORES_LUTADORES[NUM_PERSONAGENS] = {
-    BLUE,
-    RED
+    { 0, 121, 241, 255 }, // BLUE
+    { 230, 41, 55, 255 }  // RED
 };
 
 void InicializarEstadoJogo(EstadoJogo *estado) {
@@ -101,6 +101,8 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
         return;
     }
 
+    bool enterPressionado = IsKeyPressed(KEY_ENTER);
+
     if (!estado->prontoP1) {
         if (IsKeyPressed(KEY_A)) {
             estado->selecaoP1 = (estado->selecaoP1 - 1 + NUM_PERSONAGENS) % NUM_PERSONAGENS;
@@ -108,8 +110,9 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
         if (IsKeyPressed(KEY_D)) {
             estado->selecaoP1 = (estado->selecaoP1 + 1) % NUM_PERSONAGENS;
         }
-        if (IsKeyPressed(KEY_C) || IsKeyPressed(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_C) || enterPressionado) {
             estado->prontoP1 = true;
+            enterPressionado = false; // Consome o ENTER deste frame para não confirmar o P2 junto
         }
     }
 
@@ -120,7 +123,7 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
         if (IsKeyPressed(KEY_RIGHT)) {
             estado->selecaoP2 = (estado->selecaoP2 + 1) % NUM_PERSONAGENS;
         }
-        if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_N) || enterPressionado) {
             estado->prontoP2 = true;
         }
     }
@@ -330,4 +333,11 @@ void DescarregarRecursosJogo(EstadoJogo *estado) {
         }
         estado->retratosCarregados = false;
     }
+}
+
+const char *ObterNomeLutador(int id) {
+    if (id >= 0 && id < NUM_PERSONAGENS) {
+        return NOMES_LUTADORES[id];
+    }
+    return "LUTADOR";
 }

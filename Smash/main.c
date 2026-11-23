@@ -190,16 +190,21 @@ int main(void)
                     DesenharPersonagemDebug(&p2);
                 }
 
-                // Barras de Vida
+                // Barras de Vida + Nome do Lutador Selecionado (REQ-21)
+                const char *nomeP1 = ObterNomeLutador(estado.selecaoP1);
+                DrawText(TextFormat("%s (1P)", nomeP1), 50, 16, 20, BLUE);
                 DrawRectangle(50, 40, 300, 25, LIGHTGRAY);
                 DrawRectangle(50, 40, 3 * p1.hp, 25, GREEN);
                 DrawRectangleLines(50, 40, 300, 25, BLACK);
-                DrawText(TextFormat("P1 HP: %d", p1.hp), 50, 70, 20, BLUE);
+                DrawText(TextFormat("HP: %d", p1.hp), 50, 72, 18, DARKBLUE);
 
+                const char *nomeP2 = ObterNomeLutador(estado.selecaoP2);
+                int larguraNomeP2 = MeasureText(TextFormat("(2P) %s", nomeP2), 20);
+                DrawText(TextFormat("(2P) %s", nomeP2), SCREEN_WIDTH - 50 - larguraNomeP2, 16, 20, RED);
                 DrawRectangle(SCREEN_WIDTH - 350, 40, 300, 25, LIGHTGRAY);
                 DrawRectangle(SCREEN_WIDTH - 50 - (3 * p2.hp), 40, 3 * p2.hp, 25, GREEN);
                 DrawRectangleLines(SCREEN_WIDTH - 350, 40, 300, 25, BLACK);
-                DrawText(TextFormat("P2 HP: %d", p2.hp), SCREEN_WIDTH - 150, 70, 20, RED);
+                DrawText(TextFormat("HP: %d", p2.hp), SCREEN_WIDTH - 115, 72, 18, MAROON);
 
                 // Relógio de 67s, bolinhas de rounds vencidos e banners ("ROUND 1", "FIGHT!", "K.O.!")
                 DesenharHUDRounds(&estado);

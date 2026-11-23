@@ -36,6 +36,8 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     p1->temporizador = 0;
     p1->cor = BLUE;
     p1->controles = (MapeamentoTeclas){
+        .cima = KEY_W,
+        .baixo = KEY_S,
         .esquerda = KEY_A,
         .direita = KEY_D,
         .socoBaixo = KEY_C,
@@ -53,6 +55,8 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     p2->temporizador = 0;
     p2->cor = RED;
     p2->controles = (MapeamentoTeclas){
+        .cima = KEY_UP,
+        .baixo = KEY_DOWN,
         .esquerda = KEY_LEFT,
         .direita = KEY_RIGHT,
         .socoBaixo = KEY_N,
@@ -104,26 +108,32 @@ void AtualizarControles(Personagem *p)
         return;
     }
 
-    // Prioridade para acionar novos ataques (4 golpes distintos)
-    if (IsKeyPressed(p->controles.socoBaixo))
+    // Prioridade para acionar novos ataques (cada jogador isolado nos seus botões)
+    bool ehJogador1 = (p->controles.esquerda == KEY_A);
+    bool acionarSocoBaixo = IsKeyPressed(p->controles.socoBaixo) || (!ehJogador1 && IsKeyPressed(KEY_KP_4));
+    bool acionarSocoAlto = IsKeyPressed(p->controles.socoAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_7));
+    bool acionarChuteBaixo = IsKeyPressed(p->controles.chuteBaixo) || (!ehJogador1 && IsKeyPressed(KEY_KP_5));
+    bool acionarChuteAlto = IsKeyPressed(p->controles.chuteAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_8));
+
+    if (acionarSocoBaixo)
     {
         p->estado = ESTADO_ATACANDO_SOCO_BAIXO;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
-    if (IsKeyPressed(p->controles.socoAlto))
+    if (acionarSocoAlto)
     {
         p->estado = ESTADO_ATACANDO_SOCO_ALTO;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
-    if (IsKeyPressed(p->controles.chuteBaixo))
+    if (acionarChuteBaixo)
     {
         p->estado = ESTADO_ATACANDO_CHUTE_BAIXO;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
-    if (IsKeyPressed(p->controles.chuteAlto))
+    if (acionarChuteAlto)
     {
         p->estado = ESTADO_ATACANDO_CHUTE_ALTO;
         p->temporizador = TEMPO_ATAQUE;

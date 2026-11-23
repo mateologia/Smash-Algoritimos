@@ -60,6 +60,8 @@ typedef enum
 
 typedef struct
 {
+    KeyboardKey cima;
+    KeyboardKey baixo;
     KeyboardKey esquerda;
     KeyboardKey direita;
     KeyboardKey socoBaixo;
