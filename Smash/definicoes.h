@@ -25,7 +25,7 @@
 
 #define NUM_PERSONAGENS 2
 #define ROUNDS_PARA_VENCER 2
-
+#define TEMPO_MAXIMO_ROUND 67.0f
 
 struct VisualPersonagem;
 
@@ -91,6 +91,11 @@ typedef struct
     bool prontoP2;
     int roundsP1;
     int roundsP2;
+    int roundAtual;     // Round atual (1, 2, 3...)
+    float tempoRound;   // Cronômetro regressivo de 67 segundos
+    float pausaRound;   // Pausa para exibir "ROUND X - FIGHT!" ou "K.O. / TEMPO ESGOTADO"
+    bool encerrandoRound;
+    int vencedorPartida; // 1 = P1, 2 = P2, 0 = Empate
     bool sairJogo;
 } EstadoJogo;
 

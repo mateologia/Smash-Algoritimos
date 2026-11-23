@@ -10,4 +10,10 @@ void DesenharMenu(const EstadoJogo *estado);
 void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2);
 void DesenharSelecao(const EstadoJogo *estado);
 
+void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2);
+bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, float dt);
+void DesenharHUDRounds(const EstadoJogo *estado);
+void AtualizarVitoria(EstadoJogo *estado);
+void DesenharVitoria(const EstadoJogo *estado);
+
 #endif

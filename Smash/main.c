@@ -61,7 +61,6 @@ static const ConfiguracaoVisualPersonagem VISUAL_DIO = {
     .direcaoArte = OLHANDO_DIREITA,
 };
 
-// Função auxiliar para vincular os sprites carregados aos personagens após inicializá-los
 static void AplicarVisuaisSelecionados(const EstadoJogo *estado, Personagem *p1, Personagem *p2, VisualPersonagem *visualDio)
 {
     if (visualDio->carregado)
@@ -110,7 +109,6 @@ int main(void)
 
             case TELA_SELECAO:
                 AtualizarSelecao(&estado, &p1, &p2);
-                // Assim que a seleção confirmar e mudar para a tela de combate, vincula o sprite
                 if (estado.telaAtual == TELA_COMBATE)
                 {
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
@@ -118,15 +116,25 @@ int main(void)
                 break;
 
             case TELA_COMBATE:
-                AtualizarControles(&p1);
-                AtualizarControles(&p2);
+                // Atualiza temporizador de 67s e verifica fim/troca de round
+                if (AtualizarCombateRounds(&estado, &p1, &p2, deltaTime))
+                {
+                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
+                }
 
-                AtualizarOrientacao(&p1, &p2);
+                // Só processa golpes e movimento quando não estiver na pausa ("ROUND X" / "K.O.")
+                if (estado.pausaRound <= 0.0f)
+                {
+                    AtualizarControles(&p1);
+                    AtualizarControles(&p2);
 
-                AtualizarCaixas(&p1);
-                AtualizarCaixas(&p2);
+                    AtualizarOrientacao(&p1, &p2);
 
-                ProcessarColisoes(&p1, &p2);
+                    AtualizarCaixas(&p1);
+                    AtualizarCaixas(&p2);
+
+                    ProcessarColisoes(&p1, &p2);
+                }
 
                 AtualizarVisualPersonagem(&p1, deltaTime);
                 AtualizarVisualPersonagem(&p2, deltaTime);
@@ -136,18 +144,19 @@ int main(void)
                     mostrarCaixas = !mostrarCaixas;
                 }
 
-                // Reiniciar luta atual se apertar 'R'
+                // Reiniciar partida completa (zera rounds) ao apertar 'R'
                 if (IsKeyPressed(KEY_R))
                 {
-                    InicializarPersonagens(&p1, &p2);
+                    estado.roundsP1 = 0;
+                    estado.roundsP2 = 0;
+                    estado.roundAtual = 1;
+                    IniciarNovoRound(&estado, &p1, &p2);
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
                 }
+                break;
 
-                // Retorna ao menu principal se alguém vencer e apertar ENTER
-                if ((p1.estado == ESTADO_KO || p2.estado == ESTADO_KO) && IsKeyPressed(KEY_ENTER))
-                {
-                    estado.telaAtual = TELA_MENU;
-                }
+            case TELA_VITORIA:
+                AtualizarVitoria(&estado);
                 break;
 
             default:
@@ -170,10 +179,8 @@ int main(void)
             case TELA_COMBATE:
                 ClearBackground(RAYWHITE);
 
-                // Cenário / Chão
                 DrawLine(0, CHAO_Y, SCREEN_WIDTH, CHAO_Y, DARKGRAY);
 
-                // Renderização dos lutadores
                 DesenharPersonagem(&p1);
                 DesenharPersonagem(&p2);
 
@@ -183,7 +190,7 @@ int main(void)
                     DesenharPersonagemDebug(&p2);
                 }
 
-                // HUD simples: Barras de Vida
+                // Barras de Vida
                 DrawRectangle(50, 40, 300, 25, LIGHTGRAY);
                 DrawRectangle(50, 40, 3 * p1.hp, 25, GREEN);
                 DrawRectangleLines(50, 40, 300, 25, BLACK);
@@ -194,14 +201,16 @@ int main(void)
                 DrawRectangleLines(SCREEN_WIDTH - 350, 40, 300, 25, BLACK);
                 DrawText(TextFormat("P2 HP: %d", p2.hp), SCREEN_WIDTH - 150, 70, 20, RED);
 
+                // Relógio de 67s, bolinhas de rounds vencidos e banners ("ROUND 1", "FIGHT!", "K.O.!")
+                DesenharHUDRounds(&estado);
+
                 // Instruções na tela
                 DrawText("P1: A/D (mover), C (soco), V (chute)", 50, SCREEN_HEIGHT - 40, 16, DARKGRAY);
                 DrawText("P2: Setas (mover), N (soco), M (chute) | R: Reset | F1: caixas", SCREEN_WIDTH - 520, SCREEN_HEIGHT - 40, 16, DARKGRAY);
+                break;
 
-                if (p1.estado == ESTADO_KO)
-                    DrawText("P2 VENCEU! ENTER: Menu | R: Revanche", SCREEN_WIDTH / 2 - 220, 200, 24, RED);
-                if (p2.estado == ESTADO_KO)
-                    DrawText("P1 VENCEU! ENTER: Menu | R: Revanche", SCREEN_WIDTH / 2 - 220, 200, 24, BLUE);
+            case TELA_VITORIA:
+                DesenharVitoria(&estado);
                 break;
 
             default:
