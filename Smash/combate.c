@@ -1,6 +1,26 @@
 #include "combate.h"
 #include <string.h>
 
+static bool EstaAtacando(EstadoPersonagem estado)
+{
+    return (estado == ESTADO_ATACANDO_SOCO_BAIXO ||
+            estado == ESTADO_ATACANDO_SOCO_ALTO ||
+            estado == ESTADO_ATACANDO_CHUTE_BAIXO ||
+            estado == ESTADO_ATACANDO_CHUTE_ALTO);
+}
+
+static int ObterDanoAtaque(EstadoPersonagem estado)
+{
+    switch (estado)
+    {
+        case ESTADO_ATACANDO_SOCO_BAIXO:  return DANO_SOCO_BAIXO;
+        case ESTADO_ATACANDO_SOCO_ALTO:   return DANO_SOCO_ALTO;
+        case ESTADO_ATACANDO_CHUTE_BAIXO: return DANO_CHUTE_BAIXO;
+        case ESTADO_ATACANDO_CHUTE_ALTO:  return DANO_CHUTE_ALTO;
+        default:                          return 0;
+    }
+}
+
 void InicializarPersonagens(Personagem *p1, Personagem *p2)
 {
     memset(p1, 0, sizeof(*p1));
@@ -18,8 +38,10 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     p1->controles = (MapeamentoTeclas){
         .esquerda = KEY_A,
         .direita = KEY_D,
-        .soco = KEY_C,
-        .chute = KEY_V};
+        .socoBaixo = KEY_C,
+        .socoAlto = KEY_F,
+        .chuteBaixo = KEY_V,
+        .chuteAlto = KEY_G};
 
     // Configuração Jogador 2
     p2->id = 2;
@@ -33,8 +55,10 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     p2->controles = (MapeamentoTeclas){
         .esquerda = KEY_LEFT,
         .direita = KEY_RIGHT,
-        .soco = KEY_N,
-        .chute = KEY_M};
+        .socoBaixo = KEY_N,
+        .socoAlto = KEY_J,
+        .chuteBaixo = KEY_M,
+        .chuteAlto = KEY_K};
 
     AtualizarCaixas(p1);
     AtualizarCaixas(p2);
@@ -58,8 +82,8 @@ void AtualizarControles(Personagem *p)
         return;
     }
 
-    // Se estiver executando um ataque
-    if (p->estado == ESTADO_ATACANDO_SOCO || p->estado == ESTADO_ATACANDO_CHUTE)
+    // Se estiver executando qualquer um dos 4 ataques
+    if (EstaAtacando(p->estado))
     {
         p->temporizador--;
         // Ativa a hitbox na janela central do golpe (frames 14 a 6)
@@ -80,16 +104,28 @@ void AtualizarControles(Personagem *p)
         return;
     }
 
-    // Prioridade para acionar novos ataques
-    if (IsKeyPressed(p->controles.soco))
+    // Prioridade para acionar novos ataques (4 golpes distintos)
+    if (IsKeyPressed(p->controles.socoBaixo))
     {
-        p->estado = ESTADO_ATACANDO_SOCO;
+        p->estado = ESTADO_ATACANDO_SOCO_BAIXO;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
-    if (IsKeyPressed(p->controles.chute))
+    if (IsKeyPressed(p->controles.socoAlto))
     {
-        p->estado = ESTADO_ATACANDO_CHUTE;
+        p->estado = ESTADO_ATACANDO_SOCO_ALTO;
+        p->temporizador = TEMPO_ATAQUE;
+        return;
+    }
+    if (IsKeyPressed(p->controles.chuteBaixo))
+    {
+        p->estado = ESTADO_ATACANDO_CHUTE_BAIXO;
+        p->temporizador = TEMPO_ATAQUE;
+        return;
+    }
+    if (IsKeyPressed(p->controles.chuteAlto))
+    {
+        p->estado = ESTADO_ATACANDO_CHUTE_ALTO;
         p->temporizador = TEMPO_ATAQUE;
         return;
     }
@@ -119,12 +155,11 @@ void AtualizarControles(Personagem *p)
 
 void AtualizarOrientacao(Personagem *p1, Personagem *p2)
 {
-    // Apenas atualiza a direção se não estiverem no meio de um ataque
-    if (p1->estado != ESTADO_ATACANDO_SOCO && p1->estado != ESTADO_ATACANDO_CHUTE)
+    if (!EstaAtacando(p1->estado))
     {
         p1->direcao = (p1->posicao.x < p2->posicao.x) ? OLHANDO_DIREITA : OLHANDO_ESQUERDA;
     }
-    if (p2->estado != ESTADO_ATACANDO_SOCO && p2->estado != ESTADO_ATACANDO_CHUTE)
+    if (!EstaAtacando(p2->estado))
     {
         p2->direcao = (p2->posicao.x < p1->posicao.x) ? OLHANDO_DIREITA : OLHANDO_ESQUERDA;
     }
@@ -144,9 +179,10 @@ void AtualizarCaixas(Personagem *p)
                         ? (p->posicao.x + (LARGURA_CORPO / 2.0f))
                         : (p->posicao.x - (LARGURA_CORPO / 2.0f) - LARGURA_HITBOX);
 
-    // Ajusta a altura da hitbox de acordo com o golpe (alto para soco, baixo para chute)
-    float ataqueY = (p->estado == ESTADO_ATACANDO_SOCO)
-                        ? (p->posicao.y - ALTURA_CORPO + 25.0f)
+    // Ajusta a altura da hitbox de acordo com golpe alto ou baixo
+    bool golpeAlto = (p->estado == ESTADO_ATACANDO_SOCO_ALTO || p->estado == ESTADO_ATACANDO_CHUTE_ALTO);
+    float ataqueY = golpeAlto
+                        ? (p->posicao.y - ALTURA_CORPO + 20.0f)
                         : (p->posicao.y - 55.0f);
 
     p->hitbox = (Rectangle){
@@ -178,11 +214,10 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
     // 2. Dano P1 -> P2
     if (p1->hitboxAtiva && CheckCollisionRecs(p1->hitbox, p2->hurtbox))
     {
-        int dano = (p1->estado == ESTADO_ATACANDO_SOCO) ? DANO_SOCO : DANO_CHUTE;
-        p2->hp -= dano;
+        p2->hp -= ObterDanoAtaque(p1->estado);
         p2->estado = ESTADO_HIT;
         p2->temporizador = TEMPO_HIT;
-        p1->hitboxAtiva = false; // Desativa para não dar dano contínuo em frames subsequentes
+        p1->hitboxAtiva = false;
 
         if (p2->hp <= 0)
         {
@@ -194,8 +229,7 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
     // 3. Dano P2 -> P1
     if (p2->hitboxAtiva && CheckCollisionRecs(p2->hitbox, p1->hurtbox))
     {
-        int dano = (p2->estado == ESTADO_ATACANDO_SOCO) ? DANO_SOCO : DANO_CHUTE;
-        p1->hp -= dano;
+        p1->hp -= ObterDanoAtaque(p2->estado);
         p1->estado = ESTADO_HIT;
         p1->temporizador = TEMPO_HIT;
         p2->hitboxAtiva = false;

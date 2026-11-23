@@ -15,5 +15,6 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
 void DesenharHUDRounds(const EstadoJogo *estado);
 void AtualizarVitoria(EstadoJogo *estado);
 void DesenharVitoria(const EstadoJogo *estado);
+void DescarregarRecursosJogo(EstadoJogo *estado);
 
 #endif

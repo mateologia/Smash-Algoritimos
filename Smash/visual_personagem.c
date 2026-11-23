@@ -58,11 +58,13 @@ static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, EstadoPerson
     case ESTADO_ANDANDO:
         id = ANIM_ANDANDO;
         break;
-    case ESTADO_ATACANDO_SOCO:
+    case ESTADO_ATACANDO_SOCO_BAIXO:
+    case ESTADO_ATACANDO_SOCO_ALTO:
         id = ANIM_ATACANDO_SOCO;
         break;
-    case ESTADO_ATACANDO_CHUTE:
-        id = ANIM_ATACANDO_CHUTE;
+    case ESTADO_ATACANDO_CHUTE_BAIXO:
+    case ESTADO_ATACANDO_CHUTE_ALTO:
+        id = visual->animacaoDefinida[ANIM_ATACANDO_CHUTE] ? ANIM_ATACANDO_CHUTE : ANIM_ATACANDO_SOCO;
         break;
     case ESTADO_HIT:
         id = ANIM_HIT;

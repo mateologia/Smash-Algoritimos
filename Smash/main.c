@@ -81,7 +81,7 @@ int main(void)
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Jogo de Luta 2D - INF01202");
     SetTargetFPS(TARGET_FPS);
 
-    EstadoJogo estado;
+    EstadoJogo estado = {0};
     InicializarEstadoJogo(&estado);
 
     Personagem p1 = {0}, p2 = {0};
@@ -205,8 +205,9 @@ int main(void)
                 DesenharHUDRounds(&estado);
 
                 // Instruções na tela
-                DrawText("P1: A/D (mover), C (soco), V (chute)", 50, SCREEN_HEIGHT - 40, 16, DARKGRAY);
-                DrawText("P2: Setas (mover), N (soco), M (chute) | R: Reset | F1: caixas", SCREEN_WIDTH - 520, SCREEN_HEIGHT - 40, 16, DARKGRAY);
+                DrawText("P1: A/D (mover) | C (soco baixo), F (soco alto), V (chute baixo), G (chute alto)", 30, SCREEN_HEIGHT - 52, 15, DARKGRAY);
+                DrawText("P2: Setas (mover) | N (soco baixo), J (soco alto), M (chute baixo), K (chute alto)", 30, SCREEN_HEIGHT - 30, 15, DARKGRAY);
+                DrawText("R: Reset | F1: Caixas", SCREEN_WIDTH - 185, SCREEN_HEIGHT - 30, 15, GRAY);
                 break;
 
             case TELA_VITORIA:
@@ -220,6 +221,7 @@ int main(void)
         EndDrawing();
     }
 
+    DescarregarRecursosJogo(&estado);
     DescarregarVisualPersonagem(&visualDio);
 
     CloseWindow();

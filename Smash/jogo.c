@@ -11,14 +11,11 @@ static const Color CORES_LUTADORES[NUM_PERSONAGENS] = {
     RED
 };
 
-static Texture2D retratosLutadores[NUM_PERSONAGENS];
-static bool retratosCarregados = false;
-
 void InicializarEstadoJogo(EstadoJogo *estado) {
-    if (!retratosCarregados) {
-        retratosLutadores[0] = LoadTexture("Smash/animations/DioBrando/icon.png");
-        retratosLutadores[1] = LoadTexture("Smash/animations/Baiken/icon.png");
-        retratosCarregados = true;
+    if (!estado->retratosCarregados) {
+        estado->retratosLutadores[0] = LoadTexture("Smash/animations/DioBrando/icon.png");
+        estado->retratosLutadores[1] = LoadTexture("Smash/animations/Baiken/icon.png");
+        estado->retratosCarregados = true;
     }
 
     estado->telaAtual = TELA_MENU;
@@ -111,7 +108,7 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
         if (IsKeyPressed(KEY_D)) {
             estado->selecaoP1 = (estado->selecaoP1 + 1) % NUM_PERSONAGENS;
         }
-        if (IsKeyPressed(KEY_J) || IsKeyPressed(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_C) || IsKeyPressed(KEY_ENTER)) {
             estado->prontoP1 = true;
         }
     }
@@ -123,7 +120,7 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
         if (IsKeyPressed(KEY_RIGHT)) {
             estado->selecaoP2 = (estado->selecaoP2 + 1) % NUM_PERSONAGENS;
         }
-        if (IsKeyPressed(KEY_KP_4) || IsKeyPressed(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ENTER)) {
             estado->prontoP2 = true;
         }
     }
@@ -157,14 +154,14 @@ void DesenharSelecao(const EstadoJogo *estado) {
         DrawRectangleRec(card, (Color){ 45, 52, 75, 255 });
 
         Rectangle destinoRetrato = { card.x + 30, card.y + 25, 120, 120 };
-        if (retratosCarregados && retratosLutadores[i].id > 0) {
+        if (estado->retratosCarregados && estado->retratosLutadores[i].id > 0) {
             Rectangle origemRetrato = {
                 0.0f,
                 0.0f,
-                (float)retratosLutadores[i].width,
-                (float)retratosLutadores[i].height
+                (float)estado->retratosLutadores[i].width,
+                (float)estado->retratosLutadores[i].height
             };
-            DrawTexturePro(retratosLutadores[i], origemRetrato, destinoRetrato, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+            DrawTexturePro(estado->retratosLutadores[i], origemRetrato, destinoRetrato, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
         } else {
             DrawRectangleRec(destinoRetrato, CORES_LUTADORES[i]);
         }
@@ -185,10 +182,10 @@ void DesenharSelecao(const EstadoJogo *estado) {
         }
     }
 
-    const char *textoP1 = TextFormat("P1: %s %s", NOMES_LUTADORES[estado->selecaoP1], estado->prontoP1 ? "[PRONTO]" : "(A/D + J ou ENTER)");
+    const char *textoP1 = TextFormat("P1: %s %s", NOMES_LUTADORES[estado->selecaoP1], estado->prontoP1 ? "[PRONTO]" : "(A/D para escolher | C ou ENTER)");
     DrawText(textoP1, (SCREEN_WIDTH - MeasureText(textoP1, 18)) / 2, 435, 18, estado->prontoP1 ? GREEN : LIGHTGRAY);
 
-    const char *textoP2 = TextFormat("P2: %s %s", NOMES_LUTADORES[estado->selecaoP2], estado->prontoP2 ? "[PRONTO]" : "(Setas + KP_4 ou ENTER)");
+    const char *textoP2 = TextFormat("P2: %s %s", NOMES_LUTADORES[estado->selecaoP2], estado->prontoP2 ? "[PRONTO]" : "(Setas para escolher | N ou ENTER)");
     DrawText(textoP2, (SCREEN_WIDTH - MeasureText(textoP2, 18)) / 2, 465, 18, estado->prontoP2 ? ORANGE : LIGHTGRAY);
 
     DrawText("ESC: Voltar ao Menu", 40, SCREEN_HEIGHT - 40, 18, GRAY);
@@ -232,7 +229,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
         } else if (p2->hp > p1->hp) {
             estado->roundsP2++;
         } else {
-            // Empate no round: ambos marcam ponto (se ambos chegarem a 2, vai para TELA_VITORIA como empate)
+            // Empate no round: ambos marcam ponto
             estado->roundsP1++;
             estado->roundsP2++;
         }
@@ -248,7 +245,6 @@ void DesenharHUDRounds(const EstadoJogo *estado) {
     // 1. Relógio central (67 -> 00) no topo entre as duas barras de vida
     int segundos = (int)ceilf(estado->tempoRound);
     const char *textoTempo = TextFormat("%02d", segundos);
-    Color corTempo = (segundos <= 10) ? RED : DARKBROWN;
 
     Rectangle caixaTempo = { SCREEN_WIDTH / 2.0f - 42, 24, 84, 54 };
     DrawRectangleRec(caixaTempo, (Color){ 25, 25, 35, 255 });
@@ -270,7 +266,7 @@ void DesenharHUDRounds(const EstadoJogo *estado) {
         DrawCircleLines(posXP2, 80, 9, BLACK);
     }
 
-    // 3. Banner central nas transições ("ROUND X", "FIGHT!", "FIM DE ROUND")
+    // 3. Banner central nas transições ("ROUND X", "FIGHT!", "K.O.!")
     if (estado->pausaRound > 0.0f) {
         const char *banner;
         if (estado->encerrandoRound) {
@@ -323,4 +319,15 @@ void DesenharVitoria(const EstadoJogo *estado) {
     const char *instrucao = "Pressione ENTER para voltar ao Menu Principal";
     int larguraInst = MeasureText(instrucao, 20);
     DrawText(instrucao, (SCREEN_WIDTH - larguraInst) / 2, 380, 20, LIGHTGRAY);
+}
+
+void DescarregarRecursosJogo(EstadoJogo *estado) {
+    if (estado->retratosCarregados) {
+        for (int i = 0; i < NUM_PERSONAGENS; i++) {
+            if (estado->retratosLutadores[i].id > 0) {
+                UnloadTexture(estado->retratosLutadores[i]);
+            }
+        }
+        estado->retratosCarregados = false;
+    }
 }

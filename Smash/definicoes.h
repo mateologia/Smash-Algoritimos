@@ -7,6 +7,8 @@
 
 #define SCREEN_WIDTH 1000
 #define SCREEN_HEIGHT 600
+#define VIRTUAL_WIDTH 400
+#define VIRTUAL_HEIGHT 254
 #define TARGET_FPS 60
 
 #define CHAO_Y 500.0f
@@ -17,8 +19,10 @@
 
 #define HP_MAX 100
 #define VELOCIDADE_PADRAO 5.0f
-#define DANO_SOCO 10
-#define DANO_CHUTE 15
+#define DANO_SOCO_BAIXO 8
+#define DANO_SOCO_ALTO 12
+#define DANO_CHUTE_BAIXO 10
+#define DANO_CHUTE_ALTO 16
 
 #define TEMPO_ATAQUE 18 // Duração total do ataque em frames (~300ms a 60 FPS)
 #define TEMPO_HIT 12    // Duração do atordoamento ao levar golpe
@@ -40,8 +44,10 @@ typedef enum
 {
     ESTADO_IDLE = 0,
     ESTADO_ANDANDO,
-    ESTADO_ATACANDO_SOCO,
-    ESTADO_ATACANDO_CHUTE,
+    ESTADO_ATACANDO_SOCO_BAIXO,
+    ESTADO_ATACANDO_SOCO_ALTO,
+    ESTADO_ATACANDO_CHUTE_BAIXO,
+    ESTADO_ATACANDO_CHUTE_ALTO,
     ESTADO_HIT,
     ESTADO_KO
 } EstadoPersonagem;
@@ -56,11 +62,13 @@ typedef struct
 {
     KeyboardKey esquerda;
     KeyboardKey direita;
-    KeyboardKey soco;
-    KeyboardKey chute;
+    KeyboardKey socoBaixo;
+    KeyboardKey socoAlto;
+    KeyboardKey chuteBaixo;
+    KeyboardKey chuteAlto;
 } MapeamentoTeclas;
 
-typedef struct
+typedef struct Personagem
 {
     int id;
     Vector2 posicao; // Posição base (pé do personagem: x centralizado, y no chão)
@@ -81,7 +89,7 @@ typedef struct
     Animador animador;
 } Personagem;
 
-typedef struct
+typedef struct EstadoJogo
 {
     TelaJogo telaAtual;
     int opcaoMenu;      // 0: Novo Jogo, 1: Sair
@@ -93,10 +101,13 @@ typedef struct
     int roundsP2;
     int roundAtual;     // Round atual (1, 2, 3...)
     float tempoRound;   // Cronômetro regressivo de 67 segundos
-    float pausaRound;   // Pausa para exibir "ROUND X - FIGHT!" ou "K.O. / TEMPO ESGOTADO"
+    float pausaRound;   // Pausa para exibir "ROUND X - FIGHT!" ou "K.O."
     bool encerrandoRound;
     int vencedorPartida; // 1 = P1, 2 = P2, 0 = Empate
     bool sairJogo;
+
+    Texture2D retratosLutadores[NUM_PERSONAGENS];
+    bool retratosCarregados;
 } EstadoJogo;
 
 #endif
