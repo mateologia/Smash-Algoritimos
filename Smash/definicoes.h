@@ -31,6 +31,20 @@
 #define ROUNDS_PARA_VENCER 2
 #define TEMPO_MAXIMO_ROUND 67.0f
 
+// Macros para BONUS-01 (Bloqueio) e BONUS-03 (Combos)
+#define FATOR_DANO_BLOQUEIO 0.25f   // Bloqueio reduz o dano para 25% (75% de redução)
+#define TEMPO_BLOQUEIO 8            // Frames de recuperação após defender um golpe
+#define MULTIPLICADOR_COMBO 0.15f   // +15% de bônus de dano por hit consecutivo no combo
+#define JANELA_COMBO 45             // Frames para manter o contador de combo visível/ativo
+
+// Macros para BONUS-02 (Movimentação Vertical: Pulo e Agachar)
+#define GRAVIDADE 0.8f
+#define FORCA_PULO -16.0f
+#define ALTURA_CORPO_AGACHADO 80.0f
+
+// Macro para BONUS-09 (Persistência de Histórico em .txt)
+#define ARQUIVO_HISTORICO "historico_partidas.txt"
+
 struct VisualPersonagem;
 
 typedef enum {
@@ -83,10 +97,17 @@ typedef struct Personagem
     Rectangle hitbox;
     bool hitboxAtiva;
 
+    bool bloqueando;
+    int contadorCombo;
+    int tempoCombo;
+
     int temporizador;
     MapeamentoTeclas controles;
     Color cor;
     struct VisualPersonagem *visual;
+
+    float velocidadeY;
+    bool agachado;
 
     Animador animador;
 } Personagem;
@@ -106,6 +127,9 @@ typedef struct EstadoJogo
     float pausaRound;   // Pausa para exibir "ROUND X - FIGHT!" ou "K.O."
     bool encerrandoRound;
     int vencedorPartida; // 1 = P1, 2 = P2, 0 = Empate
+    int historicoVitoriasP1;
+    int historicoVitoriasP2;
+    int historicoEmpates;
     bool sairJogo;
 
     Texture2D retratosLutadores[NUM_PERSONAGENS];

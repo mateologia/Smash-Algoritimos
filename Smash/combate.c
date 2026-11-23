@@ -71,6 +71,31 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
 void AtualizarControles(Personagem *p)
 {
     p->direcaoMovimento = 0;
+    p->bloqueando = false;
+    p->agachado = false;
+
+    if (p->tempoCombo > 0)
+    {
+        p->tempoCombo--;
+        if (p->tempoCombo <= 0)
+        {
+            p->contadorCombo = 0;
+        }
+    }
+
+    // Física vertical (gravidade sempre atua, mesmo em hitstun ou atacando no ar)
+    if (p->posicao.y < CHAO_Y || p->velocidadeY < 0.0f)
+    {
+        p->posicao.y += p->velocidadeY;
+        p->velocidadeY += GRAVIDADE;
+        if (p->posicao.y >= CHAO_Y)
+        {
+            p->posicao.y = CHAO_Y;
+            p->velocidadeY = 0.0f;
+        }
+    }
+
+    bool noChao = (p->posicao.y >= CHAO_Y);
 
     if (p->estado == ESTADO_KO)
         return;
@@ -90,7 +115,6 @@ void AtualizarControles(Personagem *p)
     if (EstaAtacando(p->estado))
     {
         p->temporizador--;
-        // Ativa a hitbox na janela central do golpe (frames 14 a 6)
         if (p->temporizador <= 14 && p->temporizador >= 6)
         {
             p->hitboxAtiva = true;
@@ -140,16 +164,39 @@ void AtualizarControles(Personagem *p)
         return;
     }
 
-    // Movimentação horizontal
+    // Pulo (W / Seta Cima) e Agachar (S / Seta Baixo) quando no chão
+    if (noChao && IsKeyPressed(p->controles.cima))
+    {
+        p->velocidadeY = FORCA_PULO;
+        noChao = false;
+    }
+    else if (noChao && IsKeyDown(p->controles.baixo))
+    {
+        p->agachado = true;
+    }
+
+    // Bloqueio (BONUS-01): segurar para trás em relação ao oponente
+    bool segurandoTras = (p->direcao == OLHANDO_DIREITA && IsKeyDown(p->controles.esquerda)) ||
+                         (p->direcao == OLHANDO_ESQUERDA && IsKeyDown(p->controles.direita));
+    if (segurandoTras && noChao)
+    {
+        p->bloqueando = true;
+    }
+
+    // Movimentação horizontal (não anda enquanto está agachado)
     int direcaoHorizontal = 0;
-    if (IsKeyDown(p->controles.esquerda))
-        direcaoHorizontal -= 1;
-    if (IsKeyDown(p->controles.direita))
-        direcaoHorizontal += 1;
+    if (!p->agachado)
+    {
+        if (IsKeyDown(p->controles.esquerda))
+            direcaoHorizontal -= 1;
+        if (IsKeyDown(p->controles.direita))
+            direcaoHorizontal += 1;
+    }
 
     if (direcaoHorizontal != 0)
     {
-        p->posicao.x += VELOCIDADE_PADRAO * (float)direcaoHorizontal;
+        float velocidade = p->bloqueando ? (VELOCIDADE_PADRAO * 0.5f) : VELOCIDADE_PADRAO;
+        p->posicao.x += velocidade * (float)direcaoHorizontal;
         p->direcaoMovimento = direcaoHorizontal;
     }
 
@@ -177,12 +224,14 @@ void AtualizarOrientacao(Personagem *p1, Personagem *p2)
 
 void AtualizarCaixas(Personagem *p)
 {
-    // Hurtbox: cobre o corpo do lutador
+    float alturaAtual = p->agachado ? ALTURA_CORPO_AGACHADO : ALTURA_CORPO;
+
+    // Hurtbox: cobre o corpo do lutador (reduzida quando agachado)
     p->hurtbox = (Rectangle){
         p->posicao.x - (LARGURA_CORPO / 2.0f),
-        p->posicao.y - ALTURA_CORPO,
+        p->posicao.y - alturaAtual,
         LARGURA_CORPO,
-        ALTURA_CORPO};
+        alturaAtual};
 
     // Hitbox: projetada à frente na direção em que o jogador está virado
     float ataqueX = (p->direcao == OLHANDO_DIREITA)
@@ -200,6 +249,53 @@ void AtualizarCaixas(Personagem *p)
         ataqueY,
         LARGURA_HITBOX,
         ALTURA_HITBOX};
+}
+
+static void AplicarImpacto(Personagem *atacante, Personagem *defensor)
+{
+    int danoBase = ObterDanoAtaque(atacante->estado);
+
+    if (defensor->bloqueando)
+    {
+        int danoBloqueado = (int)((float)danoBase * FATOR_DANO_BLOQUEIO);
+        if (danoBloqueado < 1)
+        {
+            danoBloqueado = 1;
+        }
+        defensor->hp -= danoBloqueado;
+        defensor->estado = ESTADO_HIT;
+        defensor->temporizador = TEMPO_BLOQUEIO;
+        atacante->contadorCombo = 0;
+        atacante->tempoCombo = 0;
+    }
+    else
+    {
+        // BONUS-03: Encadeamento de combo se o oponente ainda estiver em hitstun ou na janela
+        if (defensor->estado == ESTADO_HIT || atacante->tempoCombo > 0)
+        {
+            atacante->contadorCombo++;
+        }
+        else
+        {
+            atacante->contadorCombo = 1;
+        }
+        atacante->tempoCombo = JANELA_COMBO;
+
+        float multiplicador = 1.0f + ((float)(atacante->contadorCombo - 1) * MULTIPLICADOR_COMBO);
+        int danoFinal = (int)((float)danoBase * multiplicador);
+
+        defensor->hp -= danoFinal;
+        defensor->estado = ESTADO_HIT;
+        defensor->temporizador = TEMPO_HIT;
+    }
+
+    atacante->hitboxAtiva = false;
+
+    if (defensor->hp <= 0)
+    {
+        defensor->hp = 0;
+        defensor->estado = ESTADO_KO;
+    }
 }
 
 void ProcessarColisoes(Personagem *p1, Personagem *p2)
@@ -224,30 +320,12 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
     // 2. Dano P1 -> P2
     if (p1->hitboxAtiva && CheckCollisionRecs(p1->hitbox, p2->hurtbox))
     {
-        p2->hp -= ObterDanoAtaque(p1->estado);
-        p2->estado = ESTADO_HIT;
-        p2->temporizador = TEMPO_HIT;
-        p1->hitboxAtiva = false;
-
-        if (p2->hp <= 0)
-        {
-            p2->hp = 0;
-            p2->estado = ESTADO_KO;
-        }
+        AplicarImpacto(p1, p2);
     }
 
     // 3. Dano P2 -> P1
     if (p2->hitboxAtiva && CheckCollisionRecs(p2->hitbox, p1->hurtbox))
     {
-        p1->hp -= ObterDanoAtaque(p2->estado);
-        p1->estado = ESTADO_HIT;
-        p1->temporizador = TEMPO_HIT;
-        p2->hitboxAtiva = false;
-
-        if (p1->hp <= 0)
-        {
-            p1->hp = 0;
-            p1->estado = ESTADO_KO;
-        }
+        AplicarImpacto(p2, p1);
     }
 }

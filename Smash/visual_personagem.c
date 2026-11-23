@@ -259,6 +259,7 @@ void DesenharPersonagem(const Personagem *personagem)
         return;
 
     bool desenhouSprite = false;
+    float fatorAgachado = personagem->agachado ? (ALTURA_CORPO_AGACHADO / ALTURA_CORPO) : 1.0f;
 
     if (personagem->visual != NULL && AnimadorValido(&personagem->animador))
     {
@@ -267,7 +268,7 @@ void DesenharPersonagem(const Personagem *personagem)
         DesenharAnimador(&personagem->animador,
                          personagem->posicao,
                          espelhar,
-                         personagem->visual->escala,
+                         personagem->visual->escala * fatorAgachado,
                          WHITE);
 
         desenhouSprite = true;
@@ -283,10 +284,11 @@ void DesenharPersonagem(const Personagem *personagem)
 
         DrawRectangleRec(personagem->hurtbox, cor);
 
+        float alturaAtual = personagem->agachado ? ALTURA_CORPO_AGACHADO : ALTURA_CORPO;
         float olhoX = (personagem->direcao == OLHANDO_DIREITA)
                           ? (personagem->posicao.x + 15.0f)
                           : (personagem->posicao.x - 25.0f);
-        DrawRectangle((int)olhoX, (int)(personagem->posicao.y - ALTURA_CORPO + 15.0f),
+        DrawRectangle((int)olhoX, (int)(personagem->posicao.y - alturaAtual + 15.0f),
                       10, 10, WHITE);
     }
 }

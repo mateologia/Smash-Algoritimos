@@ -1,5 +1,6 @@
 #include "jogo.h"
 #include <math.h>
+#include <stdio.h>
 
 static const char *NOMES_LUTADORES[NUM_PERSONAGENS] = {
     "DIO",
@@ -11,7 +12,47 @@ static const Color CORES_LUTADORES[NUM_PERSONAGENS] = {
     { 230, 41, 55, 255 }  // RED
 };
 
+static void CarregarHistoricoPartidas(EstadoJogo *estado) {
+    estado->historicoVitoriasP1 = 0;
+    estado->historicoVitoriasP2 = 0;
+    estado->historicoEmpates = 0;
+
+    FILE *arquivo = fopen(ARQUIVO_HISTORICO, "r");
+    if (arquivo != NULL) {
+        if (fscanf(arquivo, "P1=%d\nP2=%d\nEMPATES=%d",
+                   &estado->historicoVitoriasP1,
+                   &estado->historicoVitoriasP2,
+                   &estado->historicoEmpates) != 3) {
+            estado->historicoVitoriasP1 = 0;
+            estado->historicoVitoriasP2 = 0;
+            estado->historicoEmpates = 0;
+        }
+        fclose(arquivo);
+    }
+}
+
+static void RegistrarResultadoHistorico(EstadoJogo *estado) {
+    if (estado->vencedorPartida == 1) {
+        estado->historicoVitoriasP1++;
+    } else if (estado->vencedorPartida == 2) {
+        estado->historicoVitoriasP2++;
+    } else {
+        estado->historicoEmpates++;
+    }
+
+    FILE *arquivo = fopen(ARQUIVO_HISTORICO, "w");
+    if (arquivo != NULL) {
+        fprintf(arquivo, "P1=%d\nP2=%d\nEMPATES=%d\n",
+                estado->historicoVitoriasP1,
+                estado->historicoVitoriasP2,
+                estado->historicoEmpates);
+        fclose(arquivo);
+    }
+}
+
 void InicializarEstadoJogo(EstadoJogo *estado) {
+    CarregarHistoricoPartidas(estado);
+
     if (!estado->retratosCarregados) {
         estado->retratosLutadores[0] = LoadTexture("Smash/animations/DioBrando/icon.png");
         estado->retratosLutadores[1] = LoadTexture("Smash/animations/Baiken/icon.png");
@@ -206,6 +247,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
                     else if (estado->roundsP2 > estado->roundsP1) estado->vencedorPartida = 2;
                     else estado->vencedorPartida = 0;
 
+                    RegistrarResultadoHistorico(estado);
                     estado->telaAtual = TELA_VITORIA;
                 } else {
                     estado->roundAtual++;
@@ -312,16 +354,29 @@ void DesenharVitoria(const EstadoJogo *estado) {
     }
 
     int larguraTitulo = MeasureText(titulo, 42);
-    DrawText(titulo, (SCREEN_WIDTH - larguraTitulo) / 2 + 3, 180 + 3, 42, BLACK);
-    DrawText(titulo, (SCREEN_WIDTH - larguraTitulo) / 2, 180, 42, corTitulo);
+    DrawText(titulo, (SCREEN_WIDTH - larguraTitulo) / 2 + 3, 150 + 3, 42, BLACK);
+    DrawText(titulo, (SCREEN_WIDTH - larguraTitulo) / 2, 150, 42, corTitulo);
 
-    const char *placar = TextFormat("Placar Final: %d x %d", estado->roundsP1, estado->roundsP2);
+    const char *placar = TextFormat("Placar da Partida: %d x %d", estado->roundsP1, estado->roundsP2);
     int larguraPlacar = MeasureText(placar, 28);
-    DrawText(placar, (SCREEN_WIDTH - larguraPlacar) / 2, 260, 28, WHITE);
+    DrawText(placar, (SCREEN_WIDTH - larguraPlacar) / 2, 225, 28, WHITE);
+
+    // Placar Histórico Persistido (.txt) - BONUS-09
+    DrawRectangle(SCREEN_WIDTH / 2 - 230, 285, 460, 75, (Color){ 30, 36, 58, 255 });
+    DrawRectangleLines(SCREEN_WIDTH / 2 - 230, 285, 460, 75, GOLD);
+
+    const char *tituloHist = "HISTORICO TOTAL DE PARTIDAS";
+    DrawText(tituloHist, (SCREEN_WIDTH - MeasureText(tituloHist, 16)) / 2, 297, 16, GOLD);
+
+    const char *textoHist = TextFormat("P1: %d Vitorias   |   P2: %d Vitorias   |   Empates: %d",
+                                       estado->historicoVitoriasP1,
+                                       estado->historicoVitoriasP2,
+                                       estado->historicoEmpates);
+    DrawText(textoHist, (SCREEN_WIDTH - MeasureText(textoHist, 18)) / 2, 326, 18, WHITE);
 
     const char *instrucao = "Pressione ENTER para voltar ao Menu Principal";
     int larguraInst = MeasureText(instrucao, 20);
-    DrawText(instrucao, (SCREEN_WIDTH - larguraInst) / 2, 380, 20, LIGHTGRAY);
+    DrawText(instrucao, (SCREEN_WIDTH - larguraInst) / 2, 420, 20, LIGHTGRAY);
 }
 
 void DescarregarRecursosJogo(EstadoJogo *estado) {
