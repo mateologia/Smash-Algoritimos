@@ -3,6 +3,7 @@
 #include "combate.h"
 #include "jogo.h"
 #include "visual_personagem.h"
+#include "audio.h"
 
 static const DefinicaoFolhaSprite FOLHAS_DIO[] = {
     {
@@ -95,10 +96,25 @@ static void DesenharCenarioArena(void)
     DrawLine(0, (int)CHAO_Y, (int)LARGURA_ARENA, (int)CHAO_Y, DARKGRAY);
 }
 
+static FaixaMusica MusicaDaTela(TelaJogo tela)
+{
+    switch (tela)
+    {
+        case TELA_MENU:    return MUSICA_MENU;
+        case TELA_SELECAO: return MUSICA_SELECAO;
+        case TELA_COMBATE: return MUSICA_COMBATE;
+        case TELA_VITORIA: return MUSICA_VITORIA;
+        default:           return MUSICA_NENHUMA;
+    }
+}
+
 int main(void)
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Jogo de Luta 2D - INF01202");
     SetTargetFPS(TARGET_FPS);
+
+    GerenciadorAudio audio = {0};
+    InicializarAudio(&audio);
 
     EstadoJogo estado = {0};
     InicializarEstadoJogo(&estado);
@@ -125,16 +141,17 @@ int main(void)
     while (!WindowShouldClose() && !estado.sairJogo)
     {
         float deltaTime = GetFrameTime();
+        TelaJogo telaAnterior = estado.telaAtual;
 
         // --- ATUALIZAÇÃO POR TELA ---
         switch (estado.telaAtual)
         {
             case TELA_MENU:
-                AtualizarMenu(&estado);
+                AtualizarMenu(&estado, &audio);
                 break;
 
             case TELA_SELECAO:
-                AtualizarSelecao(&estado, &p1, &p2);
+                AtualizarSelecao(&estado, &p1, &p2, &audio);
                 if (estado.telaAtual == TELA_COMBATE)
                 {
                     camera.target.x = LARGURA_ARENA / 2.0f;
@@ -144,7 +161,7 @@ int main(void)
 
             case TELA_COMBATE:
                 // Atualiza temporizador de 67s e verifica fim/troca de round
-                if (AtualizarCombateRounds(&estado, &p1, &p2, deltaTime))
+                if (AtualizarCombateRounds(&estado, &p1, &p2, deltaTime, &audio))
                 {
                     camera.target.x = LARGURA_ARENA / 2.0f;
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
@@ -153,15 +170,15 @@ int main(void)
                 // Só processa golpes e movimento quando não estiver na pausa ("ROUND X" / "K.O.") ou cena de Fatality
                 if (estado.pausaRound <= 0.0f && !estado.fatalityExecutado)
                 {
-                    AtualizarControles(&p1);
-                    AtualizarControles(&p2);
+                    AtualizarControles(&p1, &audio);
+                    AtualizarControles(&p2, &audio);
 
                     AtualizarOrientacao(&p1, &p2);
 
                     AtualizarCaixas(&p1);
                     AtualizarCaixas(&p2);
 
-                    ProcessarColisoes(&p1, &p2);
+                    ProcessarColisoes(&p1, &p2, &audio);
                 }
 
                 AtualizarVisualPersonagem(&p1, deltaTime);
@@ -190,18 +207,26 @@ int main(void)
                     estado.roundsP2 = 0;
                     estado.roundAtual = 1;
                     camera.target.x = LARGURA_ARENA / 2.0f;
-                    IniciarNovoRound(&estado, &p1, &p2);
+                    IniciarNovoRound(&estado, &p1, &p2, &audio);
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
                 }
                 break;
 
             case TELA_VITORIA:
-                AtualizarVitoria(&estado);
+                AtualizarVitoria(&estado, &audio);
                 break;
 
             default:
                 break;
         }
+
+        // --- AUDIO: trilha por tela e efeito de entrada na vitoria ---
+        if (estado.telaAtual != telaAnterior && estado.telaAtual == TELA_VITORIA)
+        {
+            TocarEfeito(&audio, SOM_VITORIA);
+        }
+        TocarMusica(&audio, MusicaDaTela(estado.telaAtual));
+        AtualizarAudio(&audio);
 
         // --- DESENHO POR TELA ---
         BeginDrawing();
@@ -330,6 +355,7 @@ int main(void)
 
     DescarregarRecursosJogo(&estado);
     DescarregarVisualPersonagem(&visualDio);
+    DescarregarAudio(&audio);
 
     CloseWindow();
     return 0;

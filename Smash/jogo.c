@@ -79,13 +79,15 @@ void InicializarEstadoJogo(EstadoJogo *estado) {
     estado->timerEfeitoFatality = 0.0f;
 }
 
-void AtualizarMenu(EstadoJogo *estado) {
+void AtualizarMenu(EstadoJogo *estado, GerenciadorAudio *audio) {
     if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP) ||
         IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN)) {
         estado->opcaoMenu = (estado->opcaoMenu == 0) ? 1 : 0;
+        TocarEfeito(audio, SOM_MENU_MOVER);
     }
 
     if (IsKeyPressed(KEY_ENTER)) {
+        TocarEfeito(audio, SOM_MENU_CONFIRMAR);
         if (estado->opcaoMenu == 0) {
             estado->selecaoP1 = 0;
             estado->selecaoP2 = 1;
@@ -127,7 +129,7 @@ void DesenharMenu(const EstadoJogo *estado) {
     DrawText(instrucao, (SCREEN_WIDTH - larguraInst) / 2, SCREEN_HEIGHT - 50, 18, LIGHTGRAY);
 }
 
-void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
+void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2, GerenciadorAudio *audio) {
     InicializarPersonagens(p1, p2);
     p1->id = estado->selecaoP1;
     p1->cor = CORES_LUTADORES[estado->selecaoP1];
@@ -142,10 +144,12 @@ void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
     estado->timerFinishHim = 0.0f;
     estado->fatalityExecutado = false;
     estado->timerEfeitoFatality = 0.0f;
+    TocarEfeito(audio, SOM_ROUND_INICIO);
 }
 
-void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
+void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2, GerenciadorAudio *audio) {
     if (IsKeyPressed(KEY_ESCAPE)) {
+        TocarEfeito(audio, SOM_MENU_MOVER);
         estado->telaAtual = TELA_MENU;
         return;
     }
@@ -155,25 +159,31 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
     if (!estado->prontoP1) {
         if (IsKeyPressed(KEY_A)) {
             estado->selecaoP1 = (estado->selecaoP1 - 1 + NUM_PERSONAGENS) % NUM_PERSONAGENS;
+            TocarEfeito(audio, SOM_MENU_MOVER);
         }
         if (IsKeyPressed(KEY_D)) {
             estado->selecaoP1 = (estado->selecaoP1 + 1) % NUM_PERSONAGENS;
+            TocarEfeito(audio, SOM_MENU_MOVER);
         }
         if (IsKeyPressed(KEY_C) || enterPressionado) {
             estado->prontoP1 = true;
             enterPressionado = false; // Consome o ENTER deste frame para não confirmar o P2 junto
+            TocarEfeito(audio, SOM_MENU_CONFIRMAR);
         }
     }
 
     if (!estado->prontoP2) {
         if (IsKeyPressed(KEY_LEFT)) {
             estado->selecaoP2 = (estado->selecaoP2 - 1 + NUM_PERSONAGENS) % NUM_PERSONAGENS;
+            TocarEfeito(audio, SOM_MENU_MOVER);
         }
         if (IsKeyPressed(KEY_RIGHT)) {
             estado->selecaoP2 = (estado->selecaoP2 + 1) % NUM_PERSONAGENS;
+            TocarEfeito(audio, SOM_MENU_MOVER);
         }
         if (IsKeyPressed(KEY_N) || enterPressionado) {
             estado->prontoP2 = true;
+            TocarEfeito(audio, SOM_MENU_CONFIRMAR);
         }
     }
 
@@ -182,7 +192,7 @@ void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
         estado->roundsP2 = 0;
         estado->roundAtual = 1;
         estado->vencedorPartida = 0;
-        IniciarNovoRound(estado, p1, p2);
+        IniciarNovoRound(estado, p1, p2, audio);
         estado->telaAtual = TELA_COMBATE;
     }
 }
@@ -243,7 +253,7 @@ void DesenharSelecao(const EstadoJogo *estado) {
     DrawText("ESC: Voltar ao Menu", 40, SCREEN_HEIGHT - 40, 18, GRAY);
 }
 
-bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, float dt) {
+bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, float dt, GerenciadorAudio *audio) {
     // 1. Cena de Fatality executado (BONUS-05)
     if (estado->fatalityExecutado) {
         estado->timerEfeitoFatality -= dt;
@@ -280,6 +290,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
             estado->fatalityExecutado = true;
             estado->timerEfeitoFatality = 2.6f;
             estado->posicaoFatality = perdedor->posicao;
+            TocarEfeito(audio, SOM_FATALITY);
             return false;
         }
 
@@ -293,6 +304,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
 
             estado->encerrandoRound = true;
             estado->pausaRound = 2.0f;
+            TocarEfeito(audio, SOM_KO);
         }
         return false;
     }
@@ -312,7 +324,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
                     estado->telaAtual = TELA_VITORIA;
                 } else {
                     estado->roundAtual++;
-                    IniciarNovoRound(estado, p1, p2);
+                    IniciarNovoRound(estado, p1, p2, audio);
                     return true; // Sinaliza ao main.c para revincular os sprites
                 }
             }
@@ -339,6 +351,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
             p2->estado = ESTADO_TONTO;
             estado->emFinishHim = true;
             estado->timerFinishHim = TEMPO_FINISH_HIM;
+            TocarEfeito(audio, SOM_FINISH_HIM);
             return false;
         }
         if (p2VenceDecisivo) {
@@ -346,6 +359,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
             p1->estado = ESTADO_TONTO;
             estado->emFinishHim = true;
             estado->timerFinishHim = TEMPO_FINISH_HIM;
+            TocarEfeito(audio, SOM_FINISH_HIM);
             return false;
         }
 
@@ -361,6 +375,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
 
         estado->encerrandoRound = true;
         estado->pausaRound = 2.0f; // 2 segundos mostrando o resultado do round antes de trocar
+        TocarEfeito(audio, SOM_KO);
     }
 
     return false;
@@ -425,8 +440,9 @@ void DesenharHUDRounds(const EstadoJogo *estado) {
     }
 }
 
-void AtualizarVitoria(EstadoJogo *estado) {
+void AtualizarVitoria(EstadoJogo *estado, GerenciadorAudio *audio) {
     if (IsKeyPressed(KEY_ENTER)) {
+        TocarEfeito(audio, SOM_MENU_CONFIRMAR);
         estado->telaAtual = TELA_MENU;
     }
 }

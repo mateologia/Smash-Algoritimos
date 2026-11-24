@@ -71,7 +71,7 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     AtualizarCaixas(p2);
 }
 
-void AtualizarControles(Personagem *p)
+void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
 {
     p->direcaoMovimento = 0;
     p->bloqueando = false;
@@ -192,6 +192,7 @@ void AtualizarControles(Personagem *p)
         p->etapaEspecial = 0;
         p->timerEspecial = 0;
         p->agachado = false;
+        TocarEfeito(audio, SOM_ESPECIAL);
         return;
     }
 
@@ -199,24 +200,28 @@ void AtualizarControles(Personagem *p)
     {
         p->estado = ESTADO_ATACANDO_SOCO_BAIXO;
         p->temporizador = TEMPO_ATAQUE;
+        TocarEfeito(audio, SOM_SOCO);
         return;
     }
     if (acionarSocoAlto)
     {
         p->estado = ESTADO_ATACANDO_SOCO_ALTO;
         p->temporizador = TEMPO_ATAQUE;
+        TocarEfeito(audio, SOM_SOCO);
         return;
     }
     if (acionarChuteBaixo)
     {
         p->estado = ESTADO_ATACANDO_CHUTE_BAIXO;
         p->temporizador = TEMPO_ATAQUE;
+        TocarEfeito(audio, SOM_CHUTE);
         return;
     }
     if (acionarChuteAlto)
     {
         p->estado = ESTADO_ATACANDO_CHUTE_ALTO;
         p->temporizador = TEMPO_ATAQUE;
+        TocarEfeito(audio, SOM_CHUTE);
         return;
     }
 
@@ -311,7 +316,7 @@ void AtualizarCaixas(Personagem *p)
         alturaHitbox};
 }
 
-static void AplicarImpacto(Personagem *atacante, Personagem *defensor)
+static void AplicarImpacto(Personagem *atacante, Personagem *defensor, GerenciadorAudio *audio)
 {
     int danoBase = ObterDanoAtaque(atacante->estado);
 
@@ -327,6 +332,7 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor)
         defensor->temporizador = TEMPO_BLOQUEIO;
         atacante->contadorCombo = 0;
         atacante->tempoCombo = 0;
+        TocarEfeito(audio, SOM_BLOQUEIO);
     }
     else
     {
@@ -347,6 +353,7 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor)
         defensor->hp -= danoFinal;
         defensor->estado = ESTADO_HIT;
         defensor->temporizador = TEMPO_HIT;
+        TocarEfeito(audio, SOM_IMPACTO);
     }
 
     atacante->hitboxAtiva = false;
@@ -358,7 +365,7 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor)
     }
 }
 
-void ProcessarColisoes(Personagem *p1, Personagem *p2)
+void ProcessarColisoes(Personagem *p1, Personagem *p2, GerenciadorAudio *audio)
 {
     // 1. Bloqueio de sobreposição de corpos
     if (CheckCollisionRecs(p1->hurtbox, p2->hurtbox))
@@ -400,12 +407,12 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
     // 3. Dano P1 -> P2
     if (p1->hitboxAtiva && CheckCollisionRecs(p1->hitbox, p2->hurtbox))
     {
-        AplicarImpacto(p1, p2);
+        AplicarImpacto(p1, p2, audio);
     }
 
     // 4. Dano P2 -> P1
     if (p2->hitboxAtiva && CheckCollisionRecs(p2->hitbox, p1->hurtbox))
     {
-        AplicarImpacto(p2, p1);
+        AplicarImpacto(p2, p1, audio);
     }
 }
