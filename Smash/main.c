@@ -122,8 +122,8 @@ int main(void)
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
                 }
 
-                // Só processa golpes e movimento quando não estiver na pausa ("ROUND X" / "K.O.")
-                if (estado.pausaRound <= 0.0f)
+                // Só processa golpes e movimento quando não estiver na pausa ("ROUND X" / "K.O.") ou cena de Fatality
+                if (estado.pausaRound <= 0.0f && !estado.fatalityExecutado)
                 {
                     AtualizarControles(&p1);
                     AtualizarControles(&p2);
@@ -190,6 +190,27 @@ int main(void)
                     DesenharPersonagemDebug(&p2);
                 }
 
+                // Efeito visual do Fatality executado (BONUS-05)
+                if (estado.fatalityExecutado)
+                {
+                    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.65f));
+
+                    float fx = estado.posicaoFatality.x;
+                    float fy = estado.posicaoFatality.y;
+
+                    DrawRectangle((int)(fx - 35), 0, 70, (int)fy, Fade(RED, 0.55f));
+                    DrawRectangle((int)(fx - 14), 0, 28, (int)fy, Fade(GOLD, 0.85f));
+                    DrawCircleLines((int)fx, (int)(fy - 70), 65.0f, RED);
+                    DrawCircleLines((int)fx, (int)(fy - 70), 90.0f, GOLD);
+
+                    const char *bannerFatality = "FATALITY!";
+                    int larguraFatality = MeasureText(bannerFatality, 68);
+                    int tx = (SCREEN_WIDTH - larguraFatality) / 2;
+                    int ty = SCREEN_HEIGHT / 2 - 45;
+                    DrawText(bannerFatality, tx + 4, ty + 4, 68, BLACK);
+                    DrawText(bannerFatality, tx, ty, 68, RED);
+                }
+
                 // Barras de Vida + Nome do Lutador Selecionado (REQ-21)
                 const char *nomeP1 = ObterNomeLutador(estado.selecaoP1);
                 DrawText(TextFormat("%s (1P)", nomeP1), 50, 16, 20, BLUE);
@@ -206,13 +227,45 @@ int main(void)
                 DrawRectangleLines(SCREEN_WIDTH - 350, 40, 300, 25, BLACK);
                 DrawText(TextFormat("HP: %d", p2.hp), SCREEN_WIDTH - 115, 72, 18, MAROON);
 
-                // Relógio de 67s, bolinhas de rounds vencidos e banners ("ROUND 1", "FIGHT!", "K.O.!")
+                // Relógio de 67s, bolinhas de rounds vencidos e banners ("ROUND 1", "FIGHT!", "FINISH HIM!", "K.O.!")
                 DesenharHUDRounds(&estado);
 
+                // Feedback visual de Bloqueio (BONUS-01), Combos (BONUS-03) e Golpe Especial (BONUS-04)
+                if (p1.bloqueando)
+                {
+                    DrawRectangleLinesEx(p1.hurtbox, 3, SKYBLUE);
+                    DrawText("BLOCK", (int)p1.hurtbox.x, (int)p1.hurtbox.y - 22, 16, SKYBLUE);
+                }
+                if (p2.bloqueando)
+                {
+                    DrawRectangleLinesEx(p2.hurtbox, 3, SKYBLUE);
+                    DrawText("BLOCK", (int)p2.hurtbox.x, (int)p2.hurtbox.y - 22, 16, SKYBLUE);
+                }
+
+                if (p1.estado == ESTADO_ESPECIAL)
+                {
+                    DrawText("SPECIAL!", (int)p1.hurtbox.x, (int)p1.hurtbox.y - 26, 20, GOLD);
+                }
+                if (p2.estado == ESTADO_ESPECIAL)
+                {
+                    DrawText("SPECIAL!", (int)p2.hurtbox.x, (int)p2.hurtbox.y - 26, 20, GOLD);
+                }
+
+                if (p1.contadorCombo >= 2 && p1.tempoCombo > 0)
+                {
+                    DrawText(TextFormat("%d HIT COMBO!", p1.contadorCombo), 50, 105, 24, ORANGE);
+                }
+                if (p2.contadorCombo >= 2 && p2.tempoCombo > 0)
+                {
+                    const char *textoComboP2 = TextFormat("%d HIT COMBO!", p2.contadorCombo);
+                    int larguraComboP2 = MeasureText(textoComboP2, 24);
+                    DrawText(textoComboP2, SCREEN_WIDTH - 50 - larguraComboP2, 105, 24, ORANGE);
+                }
+
                 // Instruções na tela
-                DrawText("P1: A/D (mover) | C (soco baixo), F (soco alto), V (chute baixo), G (chute alto)", 30, SCREEN_HEIGHT - 52, 15, DARKGRAY);
-                DrawText("P2: Setas (mover) | N (soco baixo), J (soco alto), M (chute baixo), K (chute alto)", 30, SCREEN_HEIGHT - 30, 15, DARKGRAY);
-                DrawText("R: Reset | F1: Caixas", SCREEN_WIDTH - 185, SCREEN_HEIGHT - 30, 15, GRAY);
+                DrawText("P1: WASD (mover/pular/agachar) | C/F (socos) | V/G (chutes) | Especial: S -> D + C", 30, SCREEN_HEIGHT - 52, 14, DARKGRAY);
+                DrawText("P2: Setas (mover/pular/agachar) | N/J (socos) | M/K (chutes) | Especial: Baixo -> Esq + N", 30, SCREEN_HEIGHT - 30, 14, DARKGRAY);
+                DrawText("R: Reset | F1: Caixas", SCREEN_WIDTH - 175, SCREEN_HEIGHT - 30, 14, GRAY);
                 break;
 
             case TELA_VITORIA:

@@ -42,6 +42,17 @@
 #define FORCA_PULO -16.0f
 #define ALTURA_CORPO_AGACHADO 80.0f
 
+// Macros para BONUS-04 (Golpes Especiais via Sequência de Comandos)
+#define DANO_ESPECIAL 28
+#define LARGURA_HITBOX_ESPECIAL 130.0f
+#define ALTURA_HITBOX_ESPECIAL 70.0f
+#define JANELA_COMANDO_ESPECIAL 18
+
+// Macros para BONUS-05 (Finishing Moves / Fatalities)
+#define TEMPO_FINISH_HIM 4.0f
+#define JANELA_COMANDO_FATALITY 24
+#define ALCANCE_FATALITY 180.0f
+
 // Macro para BONUS-09 (Persistência de Histórico em .txt)
 #define ARQUIVO_HISTORICO "historico_partidas.txt"
 
@@ -62,6 +73,9 @@ typedef enum
     ESTADO_ATACANDO_SOCO_ALTO,
     ESTADO_ATACANDO_CHUTE_BAIXO,
     ESTADO_ATACANDO_CHUTE_ALTO,
+    ESTADO_ESPECIAL,
+    ESTADO_TONTO,
+    ESTADO_FATALITY,
     ESTADO_HIT,
     ESTADO_KO
 } EstadoPersonagem;
@@ -109,6 +123,12 @@ typedef struct Personagem
     float velocidadeY;
     bool agachado;
 
+    int etapaEspecial; // 0 = nada, 1 = apertou Baixo, 2 = apertou Baixo -> Frente
+    int timerEspecial; // Janela em frames para completar o próximo passo
+
+    int etapaFatality; // 0 = nada, 1 = apertou Baixo 1x, 2 = apertou Baixo 2x
+    int timerFatality; // Janela em frames para completar o Fatality
+
     Animador animador;
 } Personagem;
 
@@ -131,6 +151,11 @@ typedef struct EstadoJogo
     int historicoVitoriasP2;
     int historicoEmpates;
     bool sairJogo;
+    bool emFinishHim;
+    float timerFinishHim;
+    bool fatalityExecutado;
+    float timerEfeitoFatality;
+    Vector2 posicaoFatality;
 
     Texture2D retratosLutadores[NUM_PERSONAGENS];
     bool retratosCarregados;

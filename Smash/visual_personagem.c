@@ -60,6 +60,8 @@ static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, EstadoPerson
         break;
     case ESTADO_ATACANDO_SOCO_BAIXO:
     case ESTADO_ATACANDO_SOCO_ALTO:
+    case ESTADO_ESPECIAL:
+    case ESTADO_FATALITY:
         id = ANIM_ATACANDO_SOCO;
         break;
     case ESTADO_ATACANDO_CHUTE_BAIXO:
@@ -67,6 +69,7 @@ static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, EstadoPerson
         id = visual->animacaoDefinida[ANIM_ATACANDO_CHUTE] ? ANIM_ATACANDO_CHUTE : ANIM_ATACANDO_SOCO;
         break;
     case ESTADO_HIT:
+    case ESTADO_TONTO:
         id = ANIM_HIT;
         break;
     case ESTADO_KO:
@@ -277,7 +280,7 @@ void DesenharPersonagem(const Personagem *personagem)
     if (!desenhouSprite)
     {
         Color cor = personagem->cor;
-        if (personagem->estado == ESTADO_HIT)
+        if (personagem->estado == ESTADO_HIT || personagem->estado == ESTADO_TONTO)
             cor = ORANGE;
         if (personagem->estado == ESTADO_KO)
             cor = DARKGRAY;
@@ -291,6 +294,12 @@ void DesenharPersonagem(const Personagem *personagem)
         DrawRectangle((int)olhoX, (int)(personagem->posicao.y - alturaAtual + 15.0f),
                       10, 10, WHITE);
     }
+
+    if (personagem->estado == ESTADO_ESPECIAL && personagem->hitboxAtiva)
+    {
+        DrawRectangleRec(personagem->hitbox, Fade(GOLD, 0.55f));
+        DrawRectangleLinesEx(personagem->hitbox, 3.0f, PURPLE);
+    }
 }
 
 void DesenharPersonagemDebug(const Personagem *personagem)
@@ -299,7 +308,7 @@ void DesenharPersonagemDebug(const Personagem *personagem)
         return;
 
     Color corCorpo = personagem->cor;
-    if (personagem->estado == ESTADO_HIT)
+    if (personagem->estado == ESTADO_HIT || personagem->estado == ESTADO_TONTO)
         corCorpo = ORANGE;
     if (personagem->estado == ESTADO_KO)
         corCorpo = DARKGRAY;

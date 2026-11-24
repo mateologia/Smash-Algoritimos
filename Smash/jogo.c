@@ -73,6 +73,10 @@ void InicializarEstadoJogo(EstadoJogo *estado) {
     estado->encerrandoRound = false;
     estado->vencedorPartida = 0;
     estado->sairJogo = false;
+    estado->emFinishHim = false;
+    estado->timerFinishHim = 0.0f;
+    estado->fatalityExecutado = false;
+    estado->timerEfeitoFatality = 0.0f;
 }
 
 void AtualizarMenu(EstadoJogo *estado) {
@@ -134,6 +138,10 @@ void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
     estado->tempoRound = TEMPO_MAXIMO_ROUND;
     estado->pausaRound = 2.0f; // 2 segundos anunciando "ROUND X" -> "FIGHT!"
     estado->encerrandoRound = false;
+    estado->emFinishHim = false;
+    estado->timerFinishHim = 0.0f;
+    estado->fatalityExecutado = false;
+    estado->timerEfeitoFatality = 0.0f;
 }
 
 void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2) {
@@ -236,7 +244,60 @@ void DesenharSelecao(const EstadoJogo *estado) {
 }
 
 bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, float dt) {
-    // Pausa de início ou fim de round
+    // 1. Cena de Fatality executado (BONUS-05)
+    if (estado->fatalityExecutado) {
+        estado->timerEfeitoFatality -= dt;
+        if (estado->timerEfeitoFatality <= 0.0f) {
+            estado->fatalityExecutado = false;
+            estado->vencedorPartida = (p1->estado == ESTADO_FATALITY) ? 1 : 2;
+            if (estado->vencedorPartida == 1) estado->roundsP1++;
+            else estado->roundsP2++;
+
+            RegistrarResultadoHistorico(estado);
+            estado->telaAtual = TELA_VITORIA;
+        }
+        return false;
+    }
+
+    // 2. Estado "FINISH HIM!" no round decisivo (BONUS-05)
+    if (estado->emFinishHim) {
+        estado->timerFinishHim -= dt;
+
+        Personagem *vencedor = (p2->estado == ESTADO_TONTO) ? p1 : p2;
+        Personagem *perdedor = (p2->estado == ESTADO_TONTO) ? p2 : p1;
+
+        bool ehJogador1 = (vencedor->controles.esquerda == KEY_A);
+        bool acionarChuteAlto = IsKeyPressed(vencedor->controles.chuteAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_8));
+        float distancia = fabsf(vencedor->posicao.x - perdedor->posicao.x);
+
+        // Executa Fatality se completar Baixo -> Baixo + Chute Alto perto do oponente
+        if (vencedor->etapaFatality == 2 && acionarChuteAlto && distancia <= ALCANCE_FATALITY) {
+            vencedor->estado = ESTADO_FATALITY;
+            vencedor->temporizador = 45;
+            perdedor->estado = ESTADO_KO;
+            perdedor->hp = 0;
+            estado->emFinishHim = false;
+            estado->fatalityExecutado = true;
+            estado->timerEfeitoFatality = 2.6f;
+            estado->posicaoFatality = perdedor->posicao;
+            return false;
+        }
+
+        // Se o tempo do Finish Him acabar ou o perdedor já tiver caído em KO
+        if (estado->timerFinishHim <= 0.0f || perdedor->estado == ESTADO_KO) {
+            perdedor->hp = 0;
+            perdedor->estado = ESTADO_KO;
+            estado->emFinishHim = false;
+            if (vencedor == p1) estado->roundsP1++;
+            else estado->roundsP2++;
+
+            estado->encerrandoRound = true;
+            estado->pausaRound = 2.0f;
+        }
+        return false;
+    }
+
+    // 3. Pausa de início ou fim de round
     if (estado->pausaRound > 0.0f) {
         estado->pausaRound -= dt;
         if (estado->pausaRound <= 0.0f) {
@@ -259,7 +320,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
         return false;
     }
 
-    // Decrementa cronômetro de 67s
+    // 4. Decrementa cronômetro de 67s
     estado->tempoRound -= dt;
     if (estado->tempoRound < 0.0f) {
         estado->tempoRound = 0.0f;
@@ -269,6 +330,25 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
     bool tempoEsgotado = (estado->tempoRound <= 0.0f);
 
     if (nocaute || tempoEsgotado) {
+        // Intercepta nocaute no round decisivo para ativar "FINISH HIM!" (BONUS-05)
+        bool p1VenceDecisivo = (p1->hp > p2->hp) && (estado->roundsP1 == ROUNDS_PARA_VENCER - 1) && nocaute;
+        bool p2VenceDecisivo = (p2->hp > p1->hp) && (estado->roundsP2 == ROUNDS_PARA_VENCER - 1) && nocaute;
+
+        if (p1VenceDecisivo) {
+            p2->hp = 1;
+            p2->estado = ESTADO_TONTO;
+            estado->emFinishHim = true;
+            estado->timerFinishHim = TEMPO_FINISH_HIM;
+            return false;
+        }
+        if (p2VenceDecisivo) {
+            p1->hp = 1;
+            p1->estado = ESTADO_TONTO;
+            estado->emFinishHim = true;
+            estado->timerFinishHim = TEMPO_FINISH_HIM;
+            return false;
+        }
+
         if (p1->hp > p2->hp) {
             estado->roundsP1++;
         } else if (p2->hp > p1->hp) {
@@ -311,7 +391,21 @@ void DesenharHUDRounds(const EstadoJogo *estado) {
         DrawCircleLines(posXP2, 80, 9, BLACK);
     }
 
-    // 3. Banner central nas transições ("ROUND X", "FIGHT!", "K.O.!")
+    // 3. Banner "FINISH HIM!" durante o round decisivo (BONUS-05)
+    if (estado->emFinishHim) {
+        const char *bannerFinish = "FINISH HIM!";
+        int larguraFinish = MeasureText(bannerFinish, 54);
+        int x = (SCREEN_WIDTH - larguraFinish) / 2;
+        int y = SCREEN_HEIGHT / 2 - 75;
+        DrawText(bannerFinish, x + 4, y + 4, 54, BLACK);
+        DrawText(bannerFinish, x, y, 54, RED);
+
+        const char *dica = "Fatality (perto): Baixo -> Baixo + Chute Alto (G / K)";
+        int larguraDica = MeasureText(dica, 18);
+        DrawText(dica, (SCREEN_WIDTH - larguraDica) / 2, y + 62, 18, GOLD);
+    }
+
+    // 4. Banner central nas transições ("ROUND X", "FIGHT!", "K.O.!")
     if (estado->pausaRound > 0.0f) {
         const char *banner;
         if (estado->encerrandoRound) {

@@ -6,7 +6,9 @@ static bool EstaAtacando(EstadoPersonagem estado)
     return (estado == ESTADO_ATACANDO_SOCO_BAIXO ||
             estado == ESTADO_ATACANDO_SOCO_ALTO ||
             estado == ESTADO_ATACANDO_CHUTE_BAIXO ||
-            estado == ESTADO_ATACANDO_CHUTE_ALTO);
+            estado == ESTADO_ATACANDO_CHUTE_ALTO ||
+            estado == ESTADO_ESPECIAL ||
+            estado == ESTADO_FATALITY);
 }
 
 static int ObterDanoAtaque(EstadoPersonagem estado)
@@ -17,6 +19,7 @@ static int ObterDanoAtaque(EstadoPersonagem estado)
         case ESTADO_ATACANDO_SOCO_ALTO:   return DANO_SOCO_ALTO;
         case ESTADO_ATACANDO_CHUTE_BAIXO: return DANO_CHUTE_BAIXO;
         case ESTADO_ATACANDO_CHUTE_ALTO:  return DANO_CHUTE_ALTO;
+        case ESTADO_ESPECIAL:             return DANO_ESPECIAL;
         default:                          return 0;
     }
 }
@@ -97,7 +100,7 @@ void AtualizarControles(Personagem *p)
 
     bool noChao = (p->posicao.y >= CHAO_Y);
 
-    if (p->estado == ESTADO_KO)
+    if (p->estado == ESTADO_KO || p->estado == ESTADO_TONTO)
         return;
 
     // Se estiver em animação de dano (Hitstun)
@@ -111,7 +114,7 @@ void AtualizarControles(Personagem *p)
         return;
     }
 
-    // Se estiver executando qualquer um dos 4 ataques
+    // Se estiver executando qualquer ataque (normal, especial ou fatality)
     if (EstaAtacando(p->estado))
     {
         p->temporizador--;
@@ -132,12 +135,65 @@ void AtualizarControles(Personagem *p)
         return;
     }
 
+    // Atualiza buffer de sequência para Golpe Especial (BONUS-04: Baixo -> Frente + Soco)
+    if (p->timerEspecial > 0)
+    {
+        p->timerEspecial--;
+        if (p->timerEspecial <= 0)
+        {
+            p->etapaEspecial = 0;
+        }
+    }
+
+    // Atualiza buffer de sequência para Fatality (BONUS-05: Baixo -> Baixo + Chute Alto)
+    if (p->timerFatality > 0)
+    {
+        p->timerFatality--;
+        if (p->timerFatality <= 0)
+        {
+            p->etapaFatality = 0;
+        }
+    }
+
+    KeyboardKey teclaFrente = (p->direcao == OLHANDO_DIREITA) ? p->controles.direita : p->controles.esquerda;
+    if (IsKeyPressed(p->controles.baixo))
+    {
+        p->etapaEspecial = 1;
+        p->timerEspecial = JANELA_COMANDO_ESPECIAL;
+
+        if (p->etapaFatality == 1 && p->timerFatality > 0)
+        {
+            p->etapaFatality = 2;
+            p->timerFatality = JANELA_COMANDO_FATALITY;
+        }
+        else
+        {
+            p->etapaFatality = 1;
+            p->timerFatality = JANELA_COMANDO_FATALITY;
+        }
+    }
+    else if (p->etapaEspecial == 1 && IsKeyPressed(teclaFrente))
+    {
+        p->etapaEspecial = 2;
+        p->timerEspecial = JANELA_COMANDO_ESPECIAL;
+    }
+
     // Prioridade para acionar novos ataques (cada jogador isolado nos seus botões)
     bool ehJogador1 = (p->controles.esquerda == KEY_A);
     bool acionarSocoBaixo = IsKeyPressed(p->controles.socoBaixo) || (!ehJogador1 && IsKeyPressed(KEY_KP_4));
     bool acionarSocoAlto = IsKeyPressed(p->controles.socoAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_7));
     bool acionarChuteBaixo = IsKeyPressed(p->controles.chuteBaixo) || (!ehJogador1 && IsKeyPressed(KEY_KP_5));
     bool acionarChuteAlto = IsKeyPressed(p->controles.chuteAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_8));
+
+    if ((acionarSocoBaixo || acionarSocoAlto) && p->etapaEspecial == 2)
+    {
+        p->estado = ESTADO_ESPECIAL;
+        p->temporizador = TEMPO_ATAQUE + 4;
+        p->etapaEspecial = 0;
+        p->timerEspecial = 0;
+        p->agachado = false;
+        return;
+    }
 
     if (acionarSocoBaixo)
     {
@@ -233,22 +289,26 @@ void AtualizarCaixas(Personagem *p)
         LARGURA_CORPO,
         alturaAtual};
 
+    bool ehEspecial = (p->estado == ESTADO_ESPECIAL);
+    float larguraHitbox = ehEspecial ? LARGURA_HITBOX_ESPECIAL : LARGURA_HITBOX;
+    float alturaHitbox = ehEspecial ? ALTURA_HITBOX_ESPECIAL : ALTURA_HITBOX;
+
     // Hitbox: projetada à frente na direção em que o jogador está virado
     float ataqueX = (p->direcao == OLHANDO_DIREITA)
                         ? (p->posicao.x + (LARGURA_CORPO / 2.0f))
-                        : (p->posicao.x - (LARGURA_CORPO / 2.0f) - LARGURA_HITBOX);
+                        : (p->posicao.x - (LARGURA_CORPO / 2.0f) - larguraHitbox);
 
-    // Ajusta a altura da hitbox de acordo com golpe alto ou baixo
+    // Ajusta a altura da hitbox de acordo com golpe especial, alto ou baixo
     bool golpeAlto = (p->estado == ESTADO_ATACANDO_SOCO_ALTO || p->estado == ESTADO_ATACANDO_CHUTE_ALTO);
-    float ataqueY = golpeAlto
-                        ? (p->posicao.y - ALTURA_CORPO + 20.0f)
-                        : (p->posicao.y - 55.0f);
+    float ataqueY = ehEspecial
+                        ? (p->posicao.y - ALTURA_CORPO + 35.0f)
+                        : (golpeAlto ? (p->posicao.y - ALTURA_CORPO + 20.0f) : (p->posicao.y - 55.0f));
 
     p->hitbox = (Rectangle){
         ataqueX,
         ataqueY,
-        LARGURA_HITBOX,
-        ALTURA_HITBOX};
+        larguraHitbox,
+        alturaHitbox};
 }
 
 static void AplicarImpacto(Personagem *atacante, Personagem *defensor)
