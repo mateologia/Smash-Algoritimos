@@ -29,9 +29,9 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     memset(p1, 0, sizeof(*p1));
     memset(p2, 0, sizeof(*p2));
 
-    // Configuração Jogador 1
+    // Configuração Jogador 1 (centralizado na arena de 1600px - BONUS-06)
     p1->id = 1;
-    p1->posicao = (Vector2){250.0f, CHAO_Y};
+    p1->posicao = (Vector2){550.0f, CHAO_Y};
     p1->hp = HP_MAX;
     p1->estado = ESTADO_IDLE;
     p1->direcao = OLHANDO_DIREITA;
@@ -50,7 +50,7 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
 
     // Configuração Jogador 2
     p2->id = 2;
-    p2->posicao = (Vector2){750.0f, CHAO_Y};
+    p2->posicao = (Vector2){1050.0f, CHAO_Y};
     p2->hp = HP_MAX;
     p2->estado = ESTADO_IDLE;
     p2->direcao = OLHANDO_ESQUERDA;
@@ -258,12 +258,12 @@ void AtualizarControles(Personagem *p)
 
     p->estado = (direcaoHorizontal != 0) ? ESTADO_ANDANDO : ESTADO_IDLE;
 
-    // Limites da tela
+    // Limites da arena larga (BONUS-06)
     float margem = LARGURA_CORPO / 2.0f;
     if (p->posicao.x - margem < 0.0f)
         p->posicao.x = margem;
-    if (p->posicao.x + margem > SCREEN_WIDTH)
-        p->posicao.x = SCREEN_WIDTH - margem;
+    if (p->posicao.x + margem > LARGURA_ARENA)
+        p->posicao.x = LARGURA_ARENA - margem;
 }
 
 void AtualizarOrientacao(Personagem *p1, Personagem *p2)
@@ -377,13 +377,33 @@ void ProcessarColisoes(Personagem *p1, Personagem *p2)
         AtualizarCaixas(p2);
     }
 
-    // 2. Dano P1 -> P2
+    // 2. Mantém ambos os lutadores dentro do campo de visão da câmera (BONUS-06)
+    float distanciaMax = SCREEN_WIDTH - LARGURA_CORPO;
+    float diferencaX = p2->posicao.x - p1->posicao.x;
+    if (diferencaX > distanciaMax)
+    {
+        float excesso = (diferencaX - distanciaMax) / 2.0f;
+        p1->posicao.x += excesso;
+        p2->posicao.x -= excesso;
+        AtualizarCaixas(p1);
+        AtualizarCaixas(p2);
+    }
+    else if (diferencaX < -distanciaMax)
+    {
+        float excesso = (-diferencaX - distanciaMax) / 2.0f;
+        p1->posicao.x -= excesso;
+        p2->posicao.x += excesso;
+        AtualizarCaixas(p1);
+        AtualizarCaixas(p2);
+    }
+
+    // 3. Dano P1 -> P2
     if (p1->hitboxAtiva && CheckCollisionRecs(p1->hitbox, p2->hurtbox))
     {
         AplicarImpacto(p1, p2);
     }
 
-    // 3. Dano P2 -> P1
+    // 4. Dano P2 -> P1
     if (p2->hitboxAtiva && CheckCollisionRecs(p2->hitbox, p1->hurtbox))
     {
         AplicarImpacto(p2, p1);

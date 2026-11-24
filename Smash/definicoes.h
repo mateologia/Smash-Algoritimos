@@ -53,6 +53,10 @@
 #define JANELA_COMANDO_FATALITY 24
 #define ALCANCE_FATALITY 180.0f
 
+// Macros para BONUS-06 (Cenário Dinâmico e Câmera 2D Deslizante)
+#define LARGURA_ARENA 1600.0f
+#define SUAVIZACAO_CAMERA 0.12f
+
 // Macro para BONUS-09 (Persistência de Histórico em .txt)
 #define ARQUIVO_HISTORICO "historico_partidas.txt"
 

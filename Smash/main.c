@@ -76,6 +76,25 @@ static void AplicarVisuaisSelecionados(const EstadoJogo *estado, Personagem *p1,
     }
 }
 
+static void DesenharCenarioArena(void)
+{
+    // Fundo base e piso estendido da arena (BONUS-06)
+    DrawRectangle(0, 0, (int)LARGURA_ARENA, (int)CHAO_Y, (Color){ 235, 238, 245, 255 });
+    DrawRectangle(0, (int)CHAO_Y, (int)LARGURA_ARENA, (int)(SCREEN_HEIGHT - CHAO_Y), (Color){ 210, 214, 222, 255 });
+
+    // Pilares arquitetônicos de referência espacial ao longo dos 1600px
+    for (int x = 100; x < (int)LARGURA_ARENA; x += 350)
+    {
+        DrawRectangle(x, 120, 48, (int)(CHAO_Y - 120), (Color){ 215, 220, 230, 255 });
+        DrawRectangleLines(x, 120, 48, (int)(CHAO_Y - 120), (Color){ 185, 192, 205, 255 });
+    }
+
+    // Limites laterais visuais da arena e linha do chão
+    DrawRectangle(0, 0, 12, (int)CHAO_Y, DARKGRAY);
+    DrawRectangle((int)LARGURA_ARENA - 12, 0, 12, (int)CHAO_Y, DARKGRAY);
+    DrawLine(0, (int)CHAO_Y, (int)LARGURA_ARENA, (int)CHAO_Y, DARKGRAY);
+}
+
 int main(void)
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Jogo de Luta 2D - INF01202");
@@ -96,6 +115,13 @@ int main(void)
 
     bool mostrarCaixas = true;
 
+    Camera2D camera = {
+        .offset = { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f },
+        .target = { LARGURA_ARENA / 2.0f, SCREEN_HEIGHT / 2.0f },
+        .rotation = 0.0f,
+        .zoom = 1.0f
+    };
+
     while (!WindowShouldClose() && !estado.sairJogo)
     {
         float deltaTime = GetFrameTime();
@@ -111,6 +137,7 @@ int main(void)
                 AtualizarSelecao(&estado, &p1, &p2);
                 if (estado.telaAtual == TELA_COMBATE)
                 {
+                    camera.target.x = LARGURA_ARENA / 2.0f;
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
                 }
                 break;
@@ -119,6 +146,7 @@ int main(void)
                 // Atualiza temporizador de 67s e verifica fim/troca de round
                 if (AtualizarCombateRounds(&estado, &p1, &p2, deltaTime))
                 {
+                    camera.target.x = LARGURA_ARENA / 2.0f;
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
                 }
 
@@ -139,6 +167,17 @@ int main(void)
                 AtualizarVisualPersonagem(&p1, deltaTime);
                 AtualizarVisualPersonagem(&p2, deltaTime);
 
+                // Atualiza Câmera 2D deslizante seguindo o ponto médio entre P1 e P2 (BONUS-06)
+                {
+                    float pontoMedioX = (p1.posicao.x + p2.posicao.x) / 2.0f;
+                    float minCameraX = SCREEN_WIDTH / 2.0f;
+                    float maxCameraX = LARGURA_ARENA - (SCREEN_WIDTH / 2.0f);
+                    if (pontoMedioX < minCameraX) pontoMedioX = minCameraX;
+                    if (pontoMedioX > maxCameraX) pontoMedioX = maxCameraX;
+
+                    camera.target.x += (pontoMedioX - camera.target.x) * SUAVIZACAO_CAMERA;
+                }
+
                 if (IsKeyPressed(KEY_F1))
                 {
                     mostrarCaixas = !mostrarCaixas;
@@ -150,6 +189,7 @@ int main(void)
                     estado.roundsP1 = 0;
                     estado.roundsP2 = 0;
                     estado.roundAtual = 1;
+                    camera.target.x = LARGURA_ARENA / 2.0f;
                     IniciarNovoRound(&estado, &p1, &p2);
                     AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
                 }
@@ -179,7 +219,10 @@ int main(void)
             case TELA_COMBATE:
                 ClearBackground(RAYWHITE);
 
-                DrawLine(0, CHAO_Y, SCREEN_WIDTH, CHAO_Y, DARKGRAY);
+                // --- MUNDO 2D COM CÂMERA DESLIZANTE (BONUS-06) ---
+                BeginMode2D(camera);
+
+                DesenharCenarioArena();
 
                 DesenharPersonagem(&p1);
                 DesenharPersonagem(&p2);
@@ -190,11 +233,30 @@ int main(void)
                     DesenharPersonagemDebug(&p2);
                 }
 
-                // Efeito visual do Fatality executado (BONUS-05)
+                // Feedback visual de Bloqueio (BONUS-01) e Golpe Especial (BONUS-04) no espaço do mundo
+                if (p1.bloqueando)
+                {
+                    DrawRectangleLinesEx(p1.hurtbox, 3, SKYBLUE);
+                    DrawText("BLOCK", (int)p1.hurtbox.x, (int)p1.hurtbox.y - 22, 16, SKYBLUE);
+                }
+                if (p2.bloqueando)
+                {
+                    DrawRectangleLinesEx(p2.hurtbox, 3, SKYBLUE);
+                    DrawText("BLOCK", (int)p2.hurtbox.x, (int)p2.hurtbox.y - 22, 16, SKYBLUE);
+                }
+
+                if (p1.estado == ESTADO_ESPECIAL)
+                {
+                    DrawText("SPECIAL!", (int)p1.hurtbox.x, (int)p1.hurtbox.y - 26, 20, GOLD);
+                }
+                if (p2.estado == ESTADO_ESPECIAL)
+                {
+                    DrawText("SPECIAL!", (int)p2.hurtbox.x, (int)p2.hurtbox.y - 26, 20, GOLD);
+                }
+
+                // Feixe de energia do Fatality no mundo (BONUS-05)
                 if (estado.fatalityExecutado)
                 {
-                    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.65f));
-
                     float fx = estado.posicaoFatality.x;
                     float fy = estado.posicaoFatality.y;
 
@@ -202,6 +264,14 @@ int main(void)
                     DrawRectangle((int)(fx - 14), 0, 28, (int)fy, Fade(GOLD, 0.85f));
                     DrawCircleLines((int)fx, (int)(fy - 70), 65.0f, RED);
                     DrawCircleLines((int)fx, (int)(fy - 70), 90.0f, GOLD);
+                }
+
+                EndMode2D();
+
+                // --- HUD FIXA NA TELA ---
+                if (estado.fatalityExecutado)
+                {
+                    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.45f));
 
                     const char *bannerFatality = "FATALITY!";
                     int larguraFatality = MeasureText(bannerFatality, 68);
@@ -229,27 +299,6 @@ int main(void)
 
                 // Relógio de 67s, bolinhas de rounds vencidos e banners ("ROUND 1", "FIGHT!", "FINISH HIM!", "K.O.!")
                 DesenharHUDRounds(&estado);
-
-                // Feedback visual de Bloqueio (BONUS-01), Combos (BONUS-03) e Golpe Especial (BONUS-04)
-                if (p1.bloqueando)
-                {
-                    DrawRectangleLinesEx(p1.hurtbox, 3, SKYBLUE);
-                    DrawText("BLOCK", (int)p1.hurtbox.x, (int)p1.hurtbox.y - 22, 16, SKYBLUE);
-                }
-                if (p2.bloqueando)
-                {
-                    DrawRectangleLinesEx(p2.hurtbox, 3, SKYBLUE);
-                    DrawText("BLOCK", (int)p2.hurtbox.x, (int)p2.hurtbox.y - 22, 16, SKYBLUE);
-                }
-
-                if (p1.estado == ESTADO_ESPECIAL)
-                {
-                    DrawText("SPECIAL!", (int)p1.hurtbox.x, (int)p1.hurtbox.y - 26, 20, GOLD);
-                }
-                if (p2.estado == ESTADO_ESPECIAL)
-                {
-                    DrawText("SPECIAL!", (int)p2.hurtbox.x, (int)p2.hurtbox.y - 26, 20, GOLD);
-                }
 
                 if (p1.contadorCombo >= 2 && p1.tempoCombo > 0)
                 {
