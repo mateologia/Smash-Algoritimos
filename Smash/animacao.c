@@ -177,6 +177,7 @@ void IniciarAnimador(Animador *animador,
         .frameAtual = 0,
         .tempoFrame = 0.0f,
         .reverso = false,
+        .invertido = false,
     };
 
     if (totalAnimacoes > 0 && indiceInicial >= 0 && indiceInicial < totalAnimacoes)
@@ -240,6 +241,7 @@ bool TrocarAnimacao(Animador *animador, int indice, bool reiniciar)
     animador->frameAtual = 0;
     animador->tempoFrame = 0.0f;
     animador->reverso = false;
+    animador->invertido = false;
 
     return true;
 }
@@ -272,7 +274,46 @@ void AtualizarAnimador(Animador *animador, float deltaTime)
     {
         animador->tempoFrame -= duracao;
 
-        if (animador->reverso)
+        if (animacao->pingPong)
+        {
+            // Vaivem: avanca ate o ultimo frame e volta ate o primeiro
+            if (!animador->invertido)
+            {
+                if (animador->frameAtual + 1 < animacao->quantidadeFrames)
+                {
+                    animador->frameAtual++;
+                }
+                else if (animacao->quantidadeFrames > 1)
+                {
+                    animador->invertido = true;
+                    animador->frameAtual--;
+                }
+                else
+                {
+                    // Folha com um unico frame: mantem parado (e termina se nao loopar)
+                    animador->tempoFrame = 0.0f;
+                    break;
+                }
+            }
+            else if (animador->frameAtual > 0)
+            {
+                animador->frameAtual--;
+            }
+            else if (animacao->loop)
+            {
+                // Voltou ao inicio: reinicia o vaivem
+                animador->invertido = false;
+                if (animacao->quantidadeFrames > 1)
+                    animador->frameAtual = 1;
+            }
+            else
+            {
+                // Terminou ao chegar de volta no primeiro frame
+                animador->tempoFrame = 0.0f;
+                break;
+            }
+        }
+        else if (animador->reverso)
         {
             if (animador->frameAtual > 0)
             {
@@ -313,6 +354,15 @@ bool AnimadorTerminou(const Animador *animador)
     const Animacao *animacao = AnimacaoAtual(animador);
     if (animacao == NULL || animacao->loop)
         return false;
+
+    if (animacao->pingPong)
+    {
+        // Termina somente depois de ter ido ate o fim e voltado ao primeiro frame
+        if (animacao->quantidadeFrames <= 1)
+            return true;
+
+        return animador->invertido && animador->frameAtual == 0;
+    }
 
     if (animador->reverso)
         return animador->frameAtual == 0;

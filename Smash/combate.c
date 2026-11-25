@@ -316,9 +316,21 @@ void AtualizarCaixas(Personagem *p)
         alturaHitbox};
 }
 
+// Um golpe conta como "alto" quando sua hitbox e projetada na parte superior do corpo
+static bool GolpeAlto(EstadoPersonagem estado)
+{
+    return (estado == ESTADO_ATACANDO_SOCO_ALTO ||
+            estado == ESTADO_ATACANDO_CHUTE_ALTO ||
+            estado == ESTADO_ESPECIAL ||
+            estado == ESTADO_FATALITY);
+}
+
 static void AplicarImpacto(Personagem *atacante, Personagem *defensor, GerenciadorAudio *audio)
 {
     int danoBase = ObterDanoAtaque(atacante->estado);
+
+    // Guarda a altura do golpe recebido para que o visual escolha hit-mid (baixo) ou hit-up (alto)
+    defensor->levouGolpeAlto = GolpeAlto(atacante->estado);
 
     if (defensor->bloqueando)
     {

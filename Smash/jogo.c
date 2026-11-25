@@ -1,10 +1,16 @@
 #include "jogo.h"
+#include "visual_personagem.h"
 #include <math.h>
 #include <stdio.h>
 
 static const char *NOMES_LUTADORES[NUM_PERSONAGENS] = {
     "DIO",
-    "BAIKEN"
+    "BLANKA"
+};
+
+static const char *ICONES_LUTADORES[NUM_PERSONAGENS] = {
+    "animations/DioBrando/dio-icon.png",
+    "animations/Blanka/blanka-icon.png"
 };
 
 static const Color CORES_LUTADORES[NUM_PERSONAGENS] = {
@@ -54,8 +60,14 @@ void InicializarEstadoJogo(EstadoJogo *estado) {
     CarregarHistoricoPartidas(estado);
 
     if (!estado->retratosCarregados) {
-        estado->retratosLutadores[0] = LoadTexture("Smash/animations/DioBrando/icon.png");
-        estado->retratosLutadores[1] = LoadTexture("Smash/animations/Baiken/icon.png");
+        for (int i = 0; i < NUM_PERSONAGENS; i++) {
+            char caminhoResolvido[1024];
+            if (ResolverCaminhoAsset(ICONES_LUTADORES[i], caminhoResolvido, sizeof(caminhoResolvido))) {
+                estado->retratosLutadores[i] = LoadTexture(caminhoResolvido);
+            } else {
+                TraceLog(LOG_WARNING, "JOGO: Icone nao encontrado: %s", ICONES_LUTADORES[i]);
+            }
+        }
         estado->retratosCarregados = true;
     }
 
@@ -127,6 +139,20 @@ void DesenharMenu(const EstadoJogo *estado) {
     const char *instrucao = "Use W/S ou SETAS para navegar e ENTER para confirmar";
     int larguraInst = MeasureText(instrucao, 18);
     DrawText(instrucao, (SCREEN_WIDTH - larguraInst) / 2, SCREEN_HEIGHT - 50, 18, LIGHTGRAY);
+}
+
+// Deixa o lutador que sobrou em idle durante a pausa do K.O., enquanto a animacao de
+// derrota do oponente roda ate o fim. Quem esta nocauteado (ESTADO_KO) nao e alterado.
+static void ColocarEmIdle(Personagem *p) {
+    if (p == NULL || p->estado == ESTADO_KO) {
+        return;
+    }
+
+    p->estado = ESTADO_IDLE;
+    p->hitboxAtiva = false;
+    p->bloqueando = false;
+    p->agachado = false;
+    p->direcaoMovimento = 0;
 }
 
 void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2, GerenciadorAudio *audio) {
@@ -217,13 +243,25 @@ void DesenharSelecao(const EstadoJogo *estado) {
 
         Rectangle destinoRetrato = { card.x + 30, card.y + 25, 120, 120 };
         if (estado->retratosCarregados && estado->retratosLutadores[i].id > 0) {
+            // Encaixa o retrato no retangulo mantendo a proporcao, seja qual for o tamanho da imagem
+            Texture2D retrato = estado->retratosLutadores[i];
+            float escala = fminf(destinoRetrato.width / (float)retrato.width,
+                                 destinoRetrato.height / (float)retrato.height);
+            float larguraRetrato = (float)retrato.width * escala;
+            float alturaRetrato = (float)retrato.height * escala;
+            Rectangle destino = {
+                destinoRetrato.x + (destinoRetrato.width - larguraRetrato) / 2.0f,
+                destinoRetrato.y + (destinoRetrato.height - alturaRetrato) / 2.0f,
+                larguraRetrato,
+                alturaRetrato
+            };
             Rectangle origemRetrato = {
                 0.0f,
                 0.0f,
-                (float)estado->retratosLutadores[i].width,
-                (float)estado->retratosLutadores[i].height
+                (float)retrato.width,
+                (float)retrato.height
             };
-            DrawTexturePro(estado->retratosLutadores[i], origemRetrato, destinoRetrato, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+            DrawTexturePro(retrato, origemRetrato, destino, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
         } else {
             DrawRectangleRec(destinoRetrato, CORES_LUTADORES[i]);
         }
@@ -302,6 +340,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
             if (vencedor == p1) estado->roundsP1++;
             else estado->roundsP2++;
 
+            ColocarEmIdle(vencedor); // Vencedor espera em idle a animacao de derrota
             estado->encerrandoRound = true;
             estado->pausaRound = 2.0f;
             TocarEfeito(audio, SOM_KO);
@@ -375,6 +414,10 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
 
         estado->encerrandoRound = true;
         estado->pausaRound = 2.0f; // 2 segundos mostrando o resultado do round antes de trocar
+        // Quem ficou em pe (ou ambos, no caso de tempo esgotado) espera em idle
+        // enquanto a animacao de derrota do nocauteado roda ate o fim
+        ColocarEmIdle(p1);
+        ColocarEmIdle(p2);
         TocarEfeito(audio, SOM_KO);
     }
 

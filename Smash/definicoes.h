@@ -116,6 +116,7 @@ typedef struct Personagem
     bool hitboxAtiva;
 
     bool bloqueando;
+    bool levouGolpeAlto; // true se o ultimo golpe recebido mirou em cima (escolhe a animacao de dano)
     int contadorCombo;
     int tempoCombo;
 

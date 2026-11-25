@@ -5,24 +5,51 @@
 #include "visual_personagem.h"
 #include "audio.h"
 
+// Folhas do DIO (cada arquivo e uma unica linha de frames do mesmo tamanho)
 static const DefinicaoFolhaSprite FOLHAS_DIO[] = {
     {
-        .caminho = "animations/DioBrando/idle-sheet.png",
+        .caminho = "animations/DioBrando/dio-idle-sheet.png",
         .colunas = 6,
         .linhas = 1,
     },
     {
-        .caminho = "animations/DioBrando/attack-up-sheet.png",
+        .caminho = "animations/DioBrando/dio-walking-sheet.png",
+        .colunas = 16,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/DioBrando/dio-attack-low-sheet.png",
+        .colunas = 5,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/DioBrando/dio-light-attack-up-sheet.png",
         .colunas = 9,
         .linhas = 1,
     },
     {
-        .caminho = "animations/DioBrando/walking-sheet.png",
-        .colunas = 16,
+        .caminho = "animations/DioBrando/dio-heavy-attack-up.png",
+        .colunas = 8,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/DioBrando/dio-hit-mid-sheet.png",
+        .colunas = 8,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/DioBrando/dio-hit-up.png",
+        .colunas = 8,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/DioBrando/dio-defeated-sheet.png",
+        .colunas = 31,
         .linhas = 1,
     },
 };
 
+// Animacoes do DIO: ataques cobrem os 0.3s (TEMPO_ATAQUE) e o dano os 0.2s (TEMPO_HIT)
 static const DefinicaoAnimacaoPersonagem ANIMACOES_DIO[] = {
     {
         .id = ANIM_IDLE,
@@ -34,8 +61,26 @@ static const DefinicaoAnimacaoPersonagem ANIMACOES_DIO[] = {
         .loop = true,
     },
     {
-        .id = ANIM_ATACANDO_SOCO,
+        .id = ANIM_ANDANDO,
         .folha = 1,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 16,
+        .duracaoFrame = 0.05f,
+        .loop = true,
+    },
+    {
+        .id = ANIM_ATAQUE_BAIXO,
+        .folha = 2,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 5,
+        .duracaoFrame = 0.06f,
+        .loop = false,
+    },
+    {
+        .id = ANIM_ATAQUE_ALTO_LEVE,
+        .folha = 3,
         .linha = 0,
         .colunaInicial = 0,
         .quantidadeFrames = 9,
@@ -43,13 +88,40 @@ static const DefinicaoAnimacaoPersonagem ANIMACOES_DIO[] = {
         .loop = false,
     },
     {
-        .id = ANIM_ANDANDO,
-        .folha = 2,
+        .id = ANIM_ATAQUE_ALTO_PESADO,
+        .folha = 4,
         .linha = 0,
         .colunaInicial = 0,
-        .quantidadeFrames = 16,
-        .duracaoFrame = 0.05f,
-        .loop = true,
+        .quantidadeFrames = 8,
+        .duracaoFrame = 0.0375f,
+        .loop = false,
+    },
+    {
+        .id = ANIM_HIT_BAIXO,
+        .folha = 5,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 8,
+        .duracaoFrame = 0.025f,
+        .loop = false,
+    },
+    {
+        .id = ANIM_HIT_ALTO,
+        .folha = 6,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 8,
+        .duracaoFrame = 0.025f,
+        .loop = false,
+    },
+    {
+        .id = ANIM_KO,
+        .folha = 7,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 31,
+        .duracaoFrame = 0.06f, // 1.86s: cabe na pausa de 2s do K.O.
+        .loop = false,
     },
 };
 
@@ -62,18 +134,140 @@ static const ConfiguracaoVisualPersonagem VISUAL_DIO = {
     .direcaoArte = OLHANDO_DIREITA,
 };
 
-static void AplicarVisuaisSelecionados(const EstadoJogo *estado, Personagem *p1, Personagem *p2, VisualPersonagem *visualDio)
-{
-    if (visualDio->carregado)
+// Folhas do BLANKA (blanka-stunted nao e usada no momento)
+static const DefinicaoFolhaSprite FOLHAS_BLANKA[] = {
     {
-        if (estado->selecaoP1 == 0)
-        {
-            VincularVisualPersonagem(p1, visualDio);
-        }
-        if (estado->selecaoP2 == 0)
-        {
-            VincularVisualPersonagem(p2, visualDio);
-        }
+        .caminho = "animations/Blanka/blanka-idle-sheet.png",
+        .colunas = 3,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-walking-sheet.png",
+        .colunas = 8,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-attack-low-sheet.png",
+        .colunas = 3,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-light-attack-up-sheet.png",
+        .colunas = 3,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-heavy-attack-up-sheet.png",
+        .colunas = 4,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-hit-sheet.png",
+        .colunas = 5,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-defeated-sheet.png",
+        .colunas = 5,
+        .linhas = 1,
+    },
+};
+
+// Animacoes do BLANKA: idle e golpes marcados como "reversed after end" (ping-pong)
+static const DefinicaoAnimacaoPersonagem ANIMACOES_BLANKA[] = {
+    {
+        .id = ANIM_IDLE,
+        .folha = 0,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 3,
+        .duracaoFrame = 0.12f,
+        .loop = true,
+        .pingPong = true,
+    },
+    {
+        .id = ANIM_ANDANDO,
+        .folha = 1,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 8,
+        .duracaoFrame = 0.05f,
+        .loop = true,
+    },
+    {
+        .id = ANIM_ATAQUE_BAIXO,
+        .folha = 2,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 3,
+        .duracaoFrame = 0.06f, // 5 frames efetivos (3 ida + 2 volta) = 0.3s
+        .loop = false,
+        .pingPong = true,
+    },
+    {
+        .id = ANIM_ATAQUE_ALTO_LEVE,
+        .folha = 3,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 3,
+        .duracaoFrame = 0.06f, // 5 frames efetivos = 0.3s
+        .loop = false,
+        .pingPong = true,
+    },
+    {
+        .id = ANIM_ATAQUE_ALTO_PESADO,
+        .folha = 4,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 4,
+        .duracaoFrame = 0.0429f, // 7 frames efetivos (4 ida + 3 volta) = 0.3s
+        .loop = false,
+        .pingPong = true,
+    },
+    {
+        .id = ANIM_HIT,
+        .folha = 5,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 5,
+        .duracaoFrame = 0.04f,
+        .loop = false,
+    },
+    {
+        .id = ANIM_KO,
+        .folha = 6,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 5,
+        .duracaoFrame = 0.06f,
+        .loop = false,
+    },
+};
+
+static const ConfiguracaoVisualPersonagem VISUAL_BLANKA = {
+    .folhas = FOLHAS_BLANKA,
+    .quantidadeFolhas = (int)(sizeof(FOLHAS_BLANKA) / sizeof(FOLHAS_BLANKA[0])),
+    .escala = 0.0f,
+    .definicoes = ANIMACOES_BLANKA,
+    .quantidadeDefinicoes = (int)(sizeof(ANIMACOES_BLANKA) / sizeof(ANIMACOES_BLANKA[0])),
+    .direcaoArte = OLHANDO_DIREITA,
+};
+
+static void AplicarVisuaisSelecionados(const EstadoJogo *estado, Personagem *p1, Personagem *p2,
+                                       VisualPersonagem *visualDio, VisualPersonagem *visualBlanka)
+{
+    VisualPersonagem *visuais[NUM_PERSONAGENS] = { visualDio, visualBlanka };
+
+    if (estado->selecaoP1 >= 0 && estado->selecaoP1 < NUM_PERSONAGENS &&
+        visuais[estado->selecaoP1] != NULL && visuais[estado->selecaoP1]->carregado)
+    {
+        VincularVisualPersonagem(p1, visuais[estado->selecaoP1]);
+    }
+
+    if (estado->selecaoP2 >= 0 && estado->selecaoP2 < NUM_PERSONAGENS &&
+        visuais[estado->selecaoP2] != NULL && visuais[estado->selecaoP2]->carregado)
+    {
+        VincularVisualPersonagem(p2, visuais[estado->selecaoP2]);
     }
 }
 
@@ -121,12 +315,18 @@ int main(void)
 
     Personagem p1 = {0}, p2 = {0};
     VisualPersonagem visualDio = {0};
+    VisualPersonagem visualBlanka = {0};
 
     InicializarPersonagens(&p1, &p2);
 
     if (!CarregarVisualPersonagem(&visualDio, &VISUAL_DIO))
     {
-        TraceLog(LOG_WARNING, "Sprite nao carregado - fallback para retangulo de debug");
+        TraceLog(LOG_WARNING, "Sprite do DIO nao carregado - fallback para retangulo de debug");
+    }
+
+    if (!CarregarVisualPersonagem(&visualBlanka, &VISUAL_BLANKA))
+    {
+        TraceLog(LOG_WARNING, "Sprite do BLANKA nao carregado - fallback para retangulo de debug");
     }
 
     bool mostrarCaixas = true;
@@ -155,7 +355,7 @@ int main(void)
                 if (estado.telaAtual == TELA_COMBATE)
                 {
                     camera.target.x = LARGURA_ARENA / 2.0f;
-                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
+                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio, &visualBlanka);
                 }
                 break;
 
@@ -164,7 +364,7 @@ int main(void)
                 if (AtualizarCombateRounds(&estado, &p1, &p2, deltaTime, &audio))
                 {
                     camera.target.x = LARGURA_ARENA / 2.0f;
-                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
+                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio, &visualBlanka);
                 }
 
                 // Só processa golpes e movimento quando não estiver na pausa ("ROUND X" / "K.O.") ou cena de Fatality
@@ -208,7 +408,7 @@ int main(void)
                     estado.roundAtual = 1;
                     camera.target.x = LARGURA_ARENA / 2.0f;
                     IniciarNovoRound(&estado, &p1, &p2, &audio);
-                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio);
+                    AplicarVisuaisSelecionados(&estado, &p1, &p2, &visualDio, &visualBlanka);
                 }
                 break;
 
@@ -355,6 +555,7 @@ int main(void)
 
     DescarregarRecursosJogo(&estado);
     DescarregarVisualPersonagem(&visualDio);
+    DescarregarVisualPersonagem(&visualBlanka);
     DescarregarAudio(&audio);
 
     CloseWindow();

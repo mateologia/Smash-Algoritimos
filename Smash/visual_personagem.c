@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static bool ResolverCaminhoAsset(const char *caminhoRelativo, char *saida, size_t tamanho)
+bool ResolverCaminhoAsset(const char *caminhoRelativo, char *saida, size_t tamanho)
 {
     if (caminhoRelativo == NULL || saida == NULL || tamanho == 0)
         return false;
@@ -32,6 +32,8 @@ static bool ResolverCaminhoAsset(const char *caminhoRelativo, char *saida, size_
     return false;
 }
 
+#define MAX_CANDIDATOS_ANIMACAO 3
+
 static int AnimacaoFallback(const VisualPersonagem *visual)
 {
     if (visual->animacaoDefinida[ANIM_IDLE])
@@ -46,41 +48,92 @@ static int AnimacaoFallback(const VisualPersonagem *visual)
     return -1;
 }
 
-static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, EstadoPersonagem estado)
+static void AdicionarCandidato(int *candidatos, int *quantidade, int id)
 {
-    int id = -1;
+    if (*quantidade < MAX_CANDIDATOS_ANIMACAO)
+        candidatos[(*quantidade)++] = id;
+}
 
-    switch (estado)
+// Retorna a primeira animacao disponivel da lista; se nenhuma existir, usa o fallback
+static int PrimeiraDisponivel(const VisualPersonagem *visual, const int *candidatos, int quantidade)
+{
+    for (int i = 0; i < quantidade; i++)
+    {
+        int id = candidatos[i];
+        if (id >= 0 && id < ANIM_TOTAL && visual->animacaoDefinida[id])
+            return id;
+    }
+
+    return AnimacaoFallback(visual);
+}
+
+static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, const Personagem *personagem)
+{
+    int candidatos[MAX_CANDIDATOS_ANIMACAO];
+    int quantidade = 0;
+
+    switch (personagem->estado)
     {
     case ESTADO_IDLE:
-        id = ANIM_IDLE;
+        AdicionarCandidato(candidatos, &quantidade, ANIM_IDLE);
         break;
     case ESTADO_ANDANDO:
-        id = ANIM_ANDANDO;
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ANDANDO);
         break;
+
+    // Golpes com hitbox rente ao chao -> attack-low
     case ESTADO_ATACANDO_SOCO_BAIXO:
+    case ESTADO_ATACANDO_CHUTE_BAIXO:
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_BAIXO);
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_ALTO_LEVE);
+        break;
+
+    // Soco alto -> golpe leve; chute alto / especial / fatality -> golpe pesado
     case ESTADO_ATACANDO_SOCO_ALTO:
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_ALTO_LEVE);
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_ALTO_PESADO);
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_BAIXO);
+        break;
+    case ESTADO_ATACANDO_CHUTE_ALTO:
     case ESTADO_ESPECIAL:
     case ESTADO_FATALITY:
-        id = ANIM_ATACANDO_SOCO;
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_ALTO_PESADO);
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_ALTO_LEVE);
+        AdicionarCandidato(candidatos, &quantidade, ANIM_ATAQUE_BAIXO);
         break;
-    case ESTADO_ATACANDO_CHUTE_BAIXO:
-    case ESTADO_ATACANDO_CHUTE_ALTO:
-        id = visual->animacaoDefinida[ANIM_ATACANDO_CHUTE] ? ANIM_ATACANDO_CHUTE : ANIM_ATACANDO_SOCO;
-        break;
+
+    // Dano recebido: hit-up para golpes altos, hit-mid para golpes baixos
     case ESTADO_HIT:
+        if (personagem->levouGolpeAlto)
+        {
+            AdicionarCandidato(candidatos, &quantidade, ANIM_HIT_ALTO);
+            AdicionarCandidato(candidatos, &quantidade, ANIM_HIT);
+            AdicionarCandidato(candidatos, &quantidade, ANIM_HIT_BAIXO);
+        }
+        else
+        {
+            AdicionarCandidato(candidatos, &quantidade, ANIM_HIT_BAIXO);
+            AdicionarCandidato(candidatos, &quantidade, ANIM_HIT);
+            AdicionarCandidato(candidatos, &quantidade, ANIM_HIT_ALTO);
+        }
+        break;
+
+    // Atordoado ("finish him"): usa o dano medio quando nao ha animacao propria
     case ESTADO_TONTO:
-        id = ANIM_HIT;
+        AdicionarCandidato(candidatos, &quantidade, ANIM_HIT_BAIXO);
+        AdicionarCandidato(candidatos, &quantidade, ANIM_HIT);
         break;
+
     case ESTADO_KO:
-        id = ANIM_KO;
+        AdicionarCandidato(candidatos, &quantidade, ANIM_KO);
         break;
+
     default:
         break;
     }
 
-    if (id >= 0 && id < ANIM_TOTAL && visual->animacaoDefinida[id])
-        return id;
+    if (quantidade > 0)
+        return PrimeiraDisponivel(visual, candidatos, quantidade);
 
     return AnimacaoFallback(visual);
 }
@@ -185,6 +238,7 @@ bool CarregarVisualPersonagem(VisualPersonagem *visual,
             .quantidadeFrames = def->quantidadeFrames,
             .duracaoFrame = (def->duracaoFrame > 0.0f) ? def->duracaoFrame : (1.0f / 60.0f),
             .loop = def->loop,
+            .pingPong = def->pingPong,
         };
         visual->animacaoDefinida[def->id] = true;
         definidas++;
@@ -225,7 +279,7 @@ void VincularVisualPersonagem(Personagem *personagem, VisualPersonagem *visual)
 
     personagem->visual = visual;
 
-    int inicial = IndiceAnimacaoParaEstado(visual, personagem->estado);
+    int inicial = IndiceAnimacaoParaEstado(visual, personagem);
     if (inicial < 0)
         return;
 
@@ -241,7 +295,7 @@ void AtualizarVisualPersonagem(Personagem *personagem, float deltaTime)
         !AnimadorValido(&personagem->animador))
         return;
 
-    int alvo = IndiceAnimacaoParaEstado(personagem->visual, personagem->estado);
+    int alvo = IndiceAnimacaoParaEstado(personagem->visual, personagem);
     if (alvo >= 0)
         TrocarAnimacao(&personagem->animador, alvo, false);
 

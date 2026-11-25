@@ -3,17 +3,24 @@
 
 #include "definicoes.h"
 #include "animacao.h"
+#include <stddef.h>
 
 typedef struct VisualPersonagem VisualPersonagem;
+
+// Procura o asset nos prefixos usados pelo jogo (raiz do projeto, pasta Smash, ...)
+bool ResolverCaminhoAsset(const char *caminhoRelativo, char *saida, size_t tamanho);
 
 typedef enum
 {
     ANIM_IDLE = 0,
     ANIM_ANDANDO,
-    ANIM_ATACANDO_SOCO,
-    ANIM_ATACANDO_CHUTE,
-    ANIM_HIT,
-    ANIM_KO,
+    ANIM_ATAQUE_BAIXO,      // attack-low: hitbox projetada rente ao chao
+    ANIM_ATAQUE_ALTO_LEVE,  // light-attack-up: hitbox alta, golpe leve
+    ANIM_ATAQUE_ALTO_PESADO,// heavy-attack-up: hitbox alta, golpe pesado
+    ANIM_HIT_BAIXO,         // hit-mid: dano recebido de golpes baixos
+    ANIM_HIT_ALTO,          // hit-up: dano recebido de golpes altos
+    ANIM_HIT,               // dano generico (quando o lutador nao distingue a altura)
+    ANIM_KO,                // defeat
     ANIM_TOTAL
 } IdAnimacaoPersonagem;
 
@@ -33,6 +40,7 @@ typedef struct
     int quantidadeFrames;
     float duracaoFrame;
     bool loop;
+    bool pingPong; // Ao terminar, reproduz invertida ate voltar ao primeiro frame
 } DefinicaoAnimacaoPersonagem;
 
 typedef struct

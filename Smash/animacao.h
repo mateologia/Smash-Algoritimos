@@ -26,6 +26,7 @@ typedef struct
     int quantidadeFrames;
     float duracaoFrame;
     bool loop;
+    bool pingPong; // Reproduz de frente e, ao chegar no fim, volta para o inicio
 } Animacao;
 
 typedef struct
@@ -38,7 +39,8 @@ typedef struct
     int indiceAtual;
     int frameAtual;
     float tempoFrame;
-    bool reverso;
+    bool reverso;   // Inverte a leitura dos frames (ex.: andando para tras)
+    bool invertido; // Direcao atual de uma animacao ping-pong (falso = avancando)
 } Animador;
 
 bool CarregarFolhaSprite(FolhaSprite *folha, const char *caminho, int colunas, int linhas);
