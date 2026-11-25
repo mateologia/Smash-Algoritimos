@@ -14,29 +14,29 @@ Recomendado: `.ogg` para musicas (streaming) e `.wav` para efeitos (baixa latenc
 
 ## Musicas (`audio/musicas/`)
 
-| Arquivo          | Quando toca                     |
-| ---------------- | ------------------------------- |
-| `menu.ogg`       | Tela de menu principal          |
-| `selecao.ogg`    | Tela de selecao de lutadores    |
-| `combate.ogg`    | Durante as lutas                |
-| `vitoria.ogg`    | Tela de resultado da partida    |
+| Arquivo           | Quando toca                                              |
+| ----------------- | -------------------------------------------------------- |
+| `pillar-men.*`    | Desde o inicio do programa, em loop, ate o jogo fechar   |
 
 ## Efeitos (`audio/efeitos/`)
 
-| Arquivo             | Evento no jogo                                   |
-| ------------------- | ------------------------------------------------ |
-| `menu-mover.ogg`    | Navegar no menu / trocar personagem              |
-| `menu-confirmar.ogg`| Confirmar uma opcao / voltar / sair              |
-| `soco.ogg`          | Inicio de um soco (baixo ou alto)                |
-| `chute.ogg`         | Inicio de um chute (baixo ou alto)               |
-| `especial.ogg`      | Golpe especial (Baixo -> Frente + Soco)          |
-| `bloqueio.ogg`      | Golpe defendido                                  |
-| `impacto.ogg`       | Golpe conectado em cheio                        |
-| `ko.ogg`            | Nocaute ou fim do round por tempo                |
-| `finish-him.ogg`    | Inicio do "FINISH HIM!"                          |
-| `fatality.ogg`      | Execucao do Fatality                             |
-| `round-inicio.ogg`  | Anuncio de "ROUND X" / "FIGHT!"                  |
-| `vitoria.ogg`       | Ao entrar na tela de vitoria                     |
+| Arquivo             | Evento no jogo                                            |
+| ------------------- | --------------------------------------------------------- |
+| `menu-mover.*`      | Navegar no menu / trocar personagem                       |
+| `menu-confirmar.*`  | Confirmar uma opcao / voltar / sair                       |
+| `soco.*`            | Inicio de um soco (baixo ou alto)                         |
+| `chute.*`           | Inicio de um chute (baixo ou alto)                        |
+| `especial.*`        | Golpe especial (Baixo -> Frente + Soco)                   |
+| `bloqueio.*`        | Golpe defendido                                           |
+| `ko.*`              | Nocaute ou fim do round por tempo                         |
+| `finish-him.*`      | Inicio do "FINISH HIM!"                                   |
+| `fatality.*`        | Execucao do Fatality                                      |
+| `round-inicio.*`    | Anuncio de "ROUND X" / "FIGHT!" nos rounds seguintes      |
+| `game-start.*`      | Primeiro round: partida comeca apos a selecao             |
+| `game-end.*`        | Fim da partida, apos a animacao de derrota                |
+| `death-dio.*`       | Golpe fatal no DIO (substitui o som normal de hit)        |
+| `death-blanka.*`    | Golpe fatal no BLANKA (substitui o som normal de hit)     |
+| `hit-1.*` a `hit-6.*`| Golpe conectado em qualquer lutador (sorteado a cada hit) |
 
 ## Volumes
 
@@ -56,4 +56,4 @@ Como o jogo pode ser executado pela raiz do repositorio (`run.sh`) ou pela pasta
 2. `audio/...`
 3. `../Smash/audio/...`
 
-Exemplo: `musicas/menu` vira `Smash/audio/musicas/menu.ogg`.
+Exemplo: `musicas/pillar-men` vira `Smash/audio/musicas/pillar-men.mp3`.

@@ -5,6 +5,8 @@
 #include "visual_personagem.h"
 #include "audio.h"
 
+#include <time.h>
+
 // Folhas do DIO (cada arquivo e uma unica linha de frames do mesmo tamanho)
 static const DefinicaoFolhaSprite FOLHAS_DIO[] = {
     {
@@ -290,25 +292,17 @@ static void DesenharCenarioArena(void)
     DrawLine(0, (int)CHAO_Y, (int)LARGURA_ARENA, (int)CHAO_Y, DARKGRAY);
 }
 
-static FaixaMusica MusicaDaTela(TelaJogo tela)
-{
-    switch (tela)
-    {
-        case TELA_MENU:    return MUSICA_MENU;
-        case TELA_SELECAO: return MUSICA_SELECAO;
-        case TELA_COMBATE: return MUSICA_COMBATE;
-        case TELA_VITORIA: return MUSICA_VITORIA;
-        default:           return MUSICA_NENHUMA;
-    }
-}
-
 int main(void)
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Jogo de Luta 2D - INF01202");
     SetTargetFPS(TARGET_FPS);
 
+    // Semente para as variacoes aleatorias de som de hit
+    SetRandomSeed((unsigned int)time(NULL));
+
     GerenciadorAudio audio = {0};
     InicializarAudio(&audio);
+    TocarMusica(&audio, MUSICA_PILLAR_MEN);
 
     EstadoJogo estado = {0};
     InicializarEstadoJogo(&estado);
@@ -420,12 +414,11 @@ int main(void)
                 break;
         }
 
-        // --- AUDIO: trilha por tela e efeito de entrada na vitoria ---
+        // --- AUDIO: efeito de fim de jogo ao entrar na tela de vitoria ---
         if (estado.telaAtual != telaAnterior && estado.telaAtual == TELA_VITORIA)
         {
-            TocarEfeito(&audio, SOM_VITORIA);
+            TocarEfeito(&audio, SOM_FIM_DE_JOGO);
         }
-        TocarMusica(&audio, MusicaDaTela(estado.telaAtual));
         AtualizarAudio(&audio);
 
         // --- DESENHO POR TELA ---

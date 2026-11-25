@@ -332,7 +332,9 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor, Gerenciad
     // Guarda a altura do golpe recebido para que o visual escolha hit-mid (baixo) ou hit-up (alto)
     defensor->levouGolpeAlto = GolpeAlto(atacante->estado);
 
-    if (defensor->bloqueando)
+    bool bloqueado = defensor->bloqueando;
+
+    if (bloqueado)
     {
         int danoBloqueado = (int)((float)danoBase * FATOR_DANO_BLOQUEIO);
         if (danoBloqueado < 1)
@@ -344,7 +346,6 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor, Gerenciad
         defensor->temporizador = TEMPO_BLOQUEIO;
         atacante->contadorCombo = 0;
         atacante->tempoCombo = 0;
-        TocarEfeito(audio, SOM_BLOQUEIO);
     }
     else
     {
@@ -365,15 +366,31 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor, Gerenciad
         defensor->hp -= danoFinal;
         defensor->estado = ESTADO_HIT;
         defensor->temporizador = TEMPO_HIT;
-        TocarEfeito(audio, SOM_IMPACTO);
     }
 
     atacante->hitboxAtiva = false;
 
-    if (defensor->hp <= 0)
+    bool golpeFatal = (defensor->hp <= 0);
+    if (golpeFatal)
     {
         defensor->hp = 0;
         defensor->estado = ESTADO_KO;
+
+        // O golpe que mata o lutador substituto o som normal de impacto/bloqueio.
+        // IDs de selecao: 0 = DIO, 1 = BLANKA.
+        if (defensor->id == 0)
+            TocarEfeito(audio, SOM_MORTE_DIO);
+        else
+            TocarEfeito(audio, SOM_MORTE_BLANKA);
+    }
+    else if (bloqueado)
+    {
+        TocarEfeito(audio, SOM_BLOQUEIO);
+    }
+    else
+    {
+        // Toda vez que um golpe conecta, sorteia uma das seis variacoes de hit
+        TocarEfeitoAleatorio(audio, SOM_HIT_1, SOM_HIT_6);
     }
 }
 

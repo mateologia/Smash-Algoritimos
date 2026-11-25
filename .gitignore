@@ -49,3 +49,6 @@ DerivedData/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# Saves
+historico_partidas.txt

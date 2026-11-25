@@ -170,7 +170,14 @@ void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2, Gerenc
     estado->timerFinishHim = 0.0f;
     estado->fatalityExecutado = false;
     estado->timerEfeitoFatality = 0.0f;
-    TocarEfeito(audio, SOM_ROUND_INICIO);
+
+    // Primeiro round de uma partida: som de inicio do jogo.
+    // Rounds seguintes: anuncio de inicio de round.
+    if (estado->roundAtual <= 1) {
+        TocarEfeito(audio, SOM_INICIO_PARTIDA);
+    } else {
+        TocarEfeito(audio, SOM_ROUND_INICIO);
+    }
 }
 
 void AtualizarSelecao(EstadoJogo *estado, Personagem *p1, Personagem *p2, GerenciadorAudio *audio) {

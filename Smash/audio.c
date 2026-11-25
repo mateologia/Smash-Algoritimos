@@ -23,10 +23,7 @@ static const char *const EXTENSOES_AUDIO[] = {
 
 // Caminhos relativos as raizes acima, sem extensao
 static const char *const ARQUIVOS_MUSICA[MUSICA_TOTAL] = {
-    [MUSICA_MENU] = "musicas/menu",
-    [MUSICA_SELECAO] = "musicas/selecao",
-    [MUSICA_COMBATE] = "musicas/combate",
-    [MUSICA_VITORIA] = "musicas/vitoria",
+    [MUSICA_PILLAR_MEN] = "musicas/pillar-men",
 };
 
 static const char *const ARQUIVOS_EFEITO[SOM_TOTAL] = {
@@ -36,12 +33,20 @@ static const char *const ARQUIVOS_EFEITO[SOM_TOTAL] = {
     [SOM_CHUTE] = "efeitos/chute",
     [SOM_ESPECIAL] = "efeitos/especial",
     [SOM_BLOQUEIO] = "efeitos/bloqueio",
-    [SOM_IMPACTO] = "efeitos/impacto",
     [SOM_KO] = "efeitos/ko",
     [SOM_FINISH_HIM] = "efeitos/finish-him",
     [SOM_FATALITY] = "efeitos/fatality",
     [SOM_ROUND_INICIO] = "efeitos/round-inicio",
-    [SOM_VITORIA] = "efeitos/vitoria",
+    [SOM_INICIO_PARTIDA] = "efeitos/game-start",
+    [SOM_FIM_DE_JOGO] = "efeitos/game-end",
+    [SOM_MORTE_DIO] = "efeitos/death-dio",
+    [SOM_MORTE_BLANKA] = "efeitos/death-blanka",
+    [SOM_HIT_1] = "efeitos/hit-1",
+    [SOM_HIT_2] = "efeitos/hit-2",
+    [SOM_HIT_3] = "efeitos/hit-3",
+    [SOM_HIT_4] = "efeitos/hit-4",
+    [SOM_HIT_5] = "efeitos/hit-5",
+    [SOM_HIT_6] = "efeitos/hit-6",
 };
 
 static float LimitarVolume(float volume)
@@ -263,6 +268,18 @@ void TocarEfeito(GerenciadorAudio *audio, EfeitoSonoro efeito)
     PlaySound(audio->efeitos[efeito]);
 }
 
+void TocarEfeitoAleatorio(GerenciadorAudio *audio, EfeitoSonoro primeiro, EfeitoSonoro ultimo)
+{
+    if (primeiro > ultimo)
+    {
+        EfeitoSonoro troca = primeiro;
+        primeiro = ultimo;
+        ultimo = troca;
+    }
+
+    TocarEfeito(audio, (EfeitoSonoro)GetRandomValue((int)primeiro, (int)ultimo));
+}
+
 void DefinirVolumeMusica(GerenciadorAudio *audio, float volume)
 {
     if (audio == NULL)
@@ -299,10 +316,7 @@ bool AudioDisponivel(const GerenciadorAudio *audio)
 const char *ObterCaminhoMusica(FaixaMusica faixa)
 {
     static const char *const CAMINHOS[MUSICA_TOTAL] = {
-        [MUSICA_MENU] = "audio/musicas/menu.ogg",
-        [MUSICA_SELECAO] = "audio/musicas/selecao.ogg",
-        [MUSICA_COMBATE] = "audio/musicas/combate.ogg",
-        [MUSICA_VITORIA] = "audio/musicas/vitoria.ogg",
+        [MUSICA_PILLAR_MEN] = "audio/musicas/pillar-men.ogg",
     };
 
     if (faixa < 0 || faixa >= MUSICA_TOTAL)
@@ -323,12 +337,20 @@ const char *ObterCaminhoEfeito(EfeitoSonoro efeito)
         [SOM_CHUTE] = "audio/efeitos/chute.ogg",
         [SOM_ESPECIAL] = "audio/efeitos/especial.ogg",
         [SOM_BLOQUEIO] = "audio/efeitos/bloqueio.ogg",
-        [SOM_IMPACTO] = "audio/efeitos/impacto.ogg",
         [SOM_KO] = "audio/efeitos/ko.ogg",
         [SOM_FINISH_HIM] = "audio/efeitos/finish-him.ogg",
         [SOM_FATALITY] = "audio/efeitos/fatality.ogg",
         [SOM_ROUND_INICIO] = "audio/efeitos/round-inicio.ogg",
-        [SOM_VITORIA] = "audio/efeitos/vitoria.ogg",
+        [SOM_INICIO_PARTIDA] = "audio/efeitos/game-start.ogg",
+        [SOM_FIM_DE_JOGO] = "audio/efeitos/game-end.ogg",
+        [SOM_MORTE_DIO] = "audio/efeitos/death-dio.ogg",
+        [SOM_MORTE_BLANKA] = "audio/efeitos/death-blanka.ogg",
+        [SOM_HIT_1] = "audio/efeitos/hit-1.ogg",
+        [SOM_HIT_2] = "audio/efeitos/hit-2.ogg",
+        [SOM_HIT_3] = "audio/efeitos/hit-3.ogg",
+        [SOM_HIT_4] = "audio/efeitos/hit-4.ogg",
+        [SOM_HIT_5] = "audio/efeitos/hit-5.ogg",
+        [SOM_HIT_6] = "audio/efeitos/hit-6.ogg",
     };
 
     return CAMINHOS[efeito];

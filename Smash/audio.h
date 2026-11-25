@@ -8,14 +8,11 @@
 #define VOLUME_MUSICA_PADRAO 0.6f
 #define VOLUME_EFEITOS_PADRAO 0.9f
 
-// Faixas de trilha sonora, uma por tela do jogo
+// Trilha sonora continua: comeca junto com o programa e so para ao fecha-lo
 typedef enum
 {
     MUSICA_NENHUMA = -1,
-    MUSICA_MENU = 0,
-    MUSICA_SELECAO,
-    MUSICA_COMBATE,
-    MUSICA_VITORIA,
+    MUSICA_PILLAR_MEN = 0,
     MUSICA_TOTAL
 } FaixaMusica;
 
@@ -28,12 +25,20 @@ typedef enum
     SOM_CHUTE,
     SOM_ESPECIAL,
     SOM_BLOQUEIO,
-    SOM_IMPACTO,
     SOM_KO,
     SOM_FINISH_HIM,
     SOM_FATALITY,
     SOM_ROUND_INICIO,
-    SOM_VITORIA,
+    SOM_INICIO_PARTIDA,
+    SOM_FIM_DE_JOGO,
+    SOM_MORTE_DIO,
+    SOM_MORTE_BLANKA,
+    SOM_HIT_1,
+    SOM_HIT_2,
+    SOM_HIT_3,
+    SOM_HIT_4,
+    SOM_HIT_5,
+    SOM_HIT_6,
     SOM_TOTAL
 } EfeitoSonoro;
 
@@ -69,6 +74,9 @@ void PararMusica(GerenciadorAudio *audio);
 
 // Dispara um efeito sonoro. Ignorado se o arquivo nao estiver carregado.
 void TocarEfeito(GerenciadorAudio *audio, EfeitoSonoro efeito);
+
+// Dispara um efeito aleatorio no intervalo [primeiro, ultimo] (inclusive).
+void TocarEfeitoAleatorio(GerenciadorAudio *audio, EfeitoSonoro primeiro, EfeitoSonoro ultimo);
 
 void DefinirVolumeMusica(GerenciadorAudio *audio, float volume);
 void DefinirVolumeEfeitos(GerenciadorAudio *audio, float volume);
