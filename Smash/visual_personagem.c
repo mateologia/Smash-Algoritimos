@@ -72,6 +72,18 @@ static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, const Person
     int candidatos[MAX_CANDIDATOS_ANIMACAO];
     int quantidade = 0;
 
+    // No ar, a animacao de pulo assume o lugar do idle e da caminhada.
+    // Ataque, dano e K.O. continuam com prioridade sobre o pulo.
+    // Considera tambem o primeiro frame do pulo, quando a velocidade ja e negativa
+    // mas a posicao ainda esta no chao.
+    bool noAr = personagem->posicao.y < CHAO_Y || personagem->velocidadeY < 0.0f;
+    if (noAr &&
+        (personagem->estado == ESTADO_IDLE || personagem->estado == ESTADO_ANDANDO) &&
+        visual->animacaoDefinida[ANIM_PULANDO])
+    {
+        return ANIM_PULANDO;
+    }
+
     switch (personagem->estado)
     {
     case ESTADO_IDLE:

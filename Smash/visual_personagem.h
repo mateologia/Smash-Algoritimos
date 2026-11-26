@@ -14,6 +14,7 @@ typedef enum
 {
     ANIM_IDLE = 0,
     ANIM_ANDANDO,
+    ANIM_PULANDO,           // jumping: substitui idle/andando enquanto esta no ar
     ANIM_ATAQUE_BAIXO,      // attack-low: hitbox projetada rente ao chao
     ANIM_ATAQUE_ALTO_LEVE,  // light-attack-up: hitbox alta, golpe leve
     ANIM_ATAQUE_ALTO_PESADO,// heavy-attack-up: hitbox alta, golpe pesado

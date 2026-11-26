@@ -17,14 +17,16 @@
 #define LARGURA_HITBOX 60.0f
 #define ALTURA_HITBOX 40.0f
 
-#define HP_MAX 100
-#define VELOCIDADE_PADRAO 5.0f
-#define DANO_SOCO_BAIXO 8
-#define DANO_SOCO_ALTO 12
-#define DANO_CHUTE_BAIXO 10
-#define DANO_CHUTE_ALTO 16
+// Vida e dano: x = vida maxima de cada lutador, derivada para que os golpes
+// encaixem exatos na vida maxima (8 golpes leves ou 6 golpes pesados levam ao K.O.)
+#define HP_MAX 96
+#define DANO_ATAQUE_LEVE (HP_MAX / 8)   // 12: golpes com hitbox baixa + light-attack-up
+#define DANO_ATAQUE_PESADO (HP_MAX / 6) // 16: heavy-attack-up
 
+#define VELOCIDADE_PADRAO 5.0f
 #define TEMPO_ATAQUE 18 // Duração total do ataque em frames (~300ms a 60 FPS)
+#define JANELA_HITBOX_INICIAL 14 // Primeiro frame em que a hitbox do ataque fica ativa
+#define JANELA_HITBOX_FINAL 6    // Último frame em que a hitbox do ataque fica ativa
 #define TEMPO_HIT 12    // Duração do atordoamento ao levar golpe
 
 #define NUM_PERSONAGENS 2
@@ -117,6 +119,7 @@ typedef struct Personagem
 
     bool bloqueando;
     bool levouGolpeAlto; // true se o ultimo golpe recebido mirou em cima (escolhe a animacao de dano)
+    bool golpeAplicado;  // true quando o ataque atual ja conectou (cada ataque acerta uma unica vez)
     int contadorCombo;
     int tempoCombo;
 

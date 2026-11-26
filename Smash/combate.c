@@ -13,12 +13,14 @@ static bool EstaAtacando(EstadoPersonagem estado)
 
 static int ObterDanoAtaque(EstadoPersonagem estado)
 {
+    // O dano segue a altura da hitbox (fonte de verdade: os nomes das animacoes):
+    // hitbox baixa (ataque baixo) e light-attack-up sao leves; heavy-attack-up e pesado
     switch (estado)
     {
-        case ESTADO_ATACANDO_SOCO_BAIXO:  return DANO_SOCO_BAIXO;
-        case ESTADO_ATACANDO_SOCO_ALTO:   return DANO_SOCO_ALTO;
-        case ESTADO_ATACANDO_CHUTE_BAIXO: return DANO_CHUTE_BAIXO;
-        case ESTADO_ATACANDO_CHUTE_ALTO:  return DANO_CHUTE_ALTO;
+        case ESTADO_ATACANDO_SOCO_BAIXO:
+        case ESTADO_ATACANDO_CHUTE_BAIXO:
+        case ESTADO_ATACANDO_SOCO_ALTO:   return DANO_ATAQUE_LEVE;
+        case ESTADO_ATACANDO_CHUTE_ALTO:  return DANO_ATAQUE_PESADO;
         case ESTADO_ESPECIAL:             return DANO_ESPECIAL;
         default:                          return 0;
     }
@@ -101,11 +103,17 @@ void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
     bool noChao = (p->posicao.y >= CHAO_Y);
 
     if (p->estado == ESTADO_KO || p->estado == ESTADO_TONTO)
+    {
+        // Nocauteado ou atordoado nao mantem a hitbox do ataque interrompido ativa
+        p->hitboxAtiva = false;
         return;
+    }
 
     // Se estiver em animação de dano (Hitstun)
     if (p->estado == ESTADO_HIT)
     {
+        // O golpe interrompeu o ataque em andamento: zera a hitbox que estava na janela ativa
+        p->hitboxAtiva = false;
         p->temporizador--;
         if (p->temporizador <= 0)
         {
@@ -118,8 +126,13 @@ void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
     if (EstaAtacando(p->estado))
     {
         p->temporizador--;
-        if (p->temporizador <= 14 && p->temporizador >= 6)
+        if (p->temporizador <= JANELA_HITBOX_INICIAL && p->temporizador >= JANELA_HITBOX_FINAL)
         {
+            // Ao abrir a janela o ataque ainda nao conectou: podera acertar uma unica vez
+            if (p->temporizador == JANELA_HITBOX_INICIAL)
+            {
+                p->golpeAplicado = false;
+            }
             p->hitboxAtiva = true;
         }
         else
@@ -327,6 +340,14 @@ static bool GolpeAlto(EstadoPersonagem estado)
 
 static void AplicarImpacto(Personagem *atacante, Personagem *defensor, GerenciadorAudio *audio)
 {
+    // Cada ataque conecta uma unica vez: a hitbox fica ativa por varios frames,
+    // entao sem esta flag um unico golpe repetiria o dano (e o bonus de combo) toda frame
+    if (atacante->golpeAplicado)
+    {
+        return;
+    }
+    atacante->golpeAplicado = true;
+
     int danoBase = ObterDanoAtaque(atacante->estado);
 
     // Guarda a altura do golpe recebido para que o visual escolha hit-mid (baixo) ou hit-up (alto)

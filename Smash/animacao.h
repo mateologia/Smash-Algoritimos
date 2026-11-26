@@ -4,7 +4,7 @@
 #include "raylib.h"
 #include <stdbool.h>
 
-#define MAX_FOLHAS_POR_VISUAL 8
+#define MAX_FOLHAS_POR_VISUAL 12
 
 typedef struct
 {
