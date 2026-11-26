@@ -87,6 +87,7 @@ void InicializarEstadoJogo(EstadoJogo *estado) {
     estado->sairJogo = false;
     estado->emFinishHim = false;
     estado->timerFinishHim = 0.0f;
+    estado->vencedorFinishHim = 0;
     estado->fatalityExecutado = false;
     estado->timerEfeitoFatality = 0.0f;
 }
@@ -151,8 +152,11 @@ static void ColocarEmIdle(Personagem *p) {
     p->estado = ESTADO_IDLE;
     p->hitboxAtiva = false;
     p->bloqueando = false;
+    p->tempoBloqueio = 0.0f;
     p->agachado = false;
     p->direcaoMovimento = 0;
+    p->etapaFatality = 0;
+    p->timerFatality = 0;
 }
 
 void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2, GerenciadorAudio *audio) {
@@ -168,6 +172,7 @@ void IniciarNovoRound(EstadoJogo *estado, Personagem *p1, Personagem *p2, Gerenc
     estado->encerrandoRound = false;
     estado->emFinishHim = false;
     estado->timerFinishHim = 0.0f;
+    estado->vencedorFinishHim = 0;
     estado->fatalityExecutado = false;
     estado->timerEfeitoFatality = 0.0f;
 
@@ -304,8 +309,16 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
         estado->timerEfeitoFatality -= dt;
         if (estado->timerEfeitoFatality <= 0.0f) {
             estado->fatalityExecutado = false;
-            estado->vencedorPartida = (p1->estado == ESTADO_FATALITY) ? 1 : 2;
-            if (estado->vencedorPartida == 1) estado->roundsP1++;
+
+            // Usa o vencedor fixado no inicio do FINISH HIM em vez de inferir pelo
+            // estado atual (que pode ter sido sobrescrito por um golpe residual).
+            int vencedor = estado->vencedorFinishHim;
+            if (vencedor != 1 && vencedor != 2) {
+                vencedor = (p1->estado == ESTADO_FATALITY) ? 1 : 2;
+            }
+
+            estado->vencedorPartida = vencedor;
+            if (vencedor == 1) estado->roundsP1++;
             else estado->roundsP2++;
 
             RegistrarResultadoHistorico(estado);
@@ -318,8 +331,41 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
     if (estado->emFinishHim) {
         estado->timerFinishHim -= dt;
 
-        Personagem *vencedor = (p2->estado == ESTADO_TONTO) ? p1 : p2;
-        Personagem *perdedor = (p2->estado == ESTADO_TONTO) ? p2 : p1;
+        Personagem *vencedor;
+        Personagem *perdedor;
+
+        // O vencedor e fixado quando o FINISH HIM comeca. Nao da para inferir
+        // pelo estado TONTO do P2, pois o perdedor pode virar KO antes da hora.
+        if (estado->vencedorFinishHim == 1) {
+            vencedor = p1;
+            perdedor = p2;
+        } else if (estado->vencedorFinishHim == 2) {
+            vencedor = p2;
+            perdedor = p1;
+        } else {
+            // Fallback defensivo para um estado antigo/sem vencedor explicito.
+            vencedor = (p2->estado == ESTADO_TONTO) ? p1 : p2;
+            perdedor = (vencedor == p1) ? p2 : p1;
+            estado->vencedorFinishHim = (vencedor == p1) ? 1 : 2;
+        }
+
+        // Comando Baixo -> Baixo + Chute Alto. O processamento fica aqui para
+        // reconhecer o segundo Baixo e o chute no mesmo frame.
+        if (vencedor->timerFatality > 0) {
+            vencedor->timerFatality--;
+            if (vencedor->timerFatality <= 0) {
+                vencedor->etapaFatality = 0;
+            }
+        }
+
+        if (IsKeyPressed(vencedor->controles.baixo)) {
+            if (vencedor->etapaFatality == 1 && vencedor->timerFatality > 0) {
+                vencedor->etapaFatality = 2;
+            } else {
+                vencedor->etapaFatality = 1;
+            }
+            vencedor->timerFatality = JANELA_COMANDO_FATALITY;
+        }
 
         bool ehJogador1 = (vencedor->controles.esquerda == KEY_A);
         bool acionarChuteAlto = IsKeyPressed(vencedor->controles.chuteAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_8));
@@ -329,8 +375,19 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
         if (vencedor->etapaFatality == 2 && acionarChuteAlto && distancia <= ALCANCE_FATALITY) {
             vencedor->estado = ESTADO_FATALITY;
             vencedor->temporizador = 45;
+            vencedor->hitboxAtiva = false;
+            vencedor->bloqueando = false;
+            vencedor->tempoBloqueio = 0.0f;
+            vencedor->etapaFatality = 0;
+            vencedor->timerFatality = 0;
+
             perdedor->estado = ESTADO_KO;
             perdedor->hp = 0;
+            perdedor->hitboxAtiva = false;
+            perdedor->bloqueando = false;
+            perdedor->tempoBloqueio = 0.0f;
+
+            estado->vencedorFinishHim = (vencedor == p1) ? 1 : 2;
             estado->emFinishHim = false;
             estado->fatalityExecutado = true;
             estado->timerEfeitoFatality = 2.6f;
@@ -339,15 +396,20 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
             return false;
         }
 
-        // Se o tempo do Finish Him acabar ou o perdedor já tiver caído em KO
+        // Se o tempo do Finish Him acabar ou o perdedor ja tiver caido em KO
         if (estado->timerFinishHim <= 0.0f || perdedor->estado == ESTADO_KO) {
             perdedor->hp = 0;
             perdedor->estado = ESTADO_KO;
+            perdedor->hitboxAtiva = false;
+            perdedor->bloqueando = false;
+            perdedor->tempoBloqueio = 0.0f;
             estado->emFinishHim = false;
+
             if (vencedor == p1) estado->roundsP1++;
             else estado->roundsP2++;
 
             ColocarEmIdle(vencedor); // Vencedor espera em idle a animacao de derrota
+            estado->vencedorFinishHim = 0;
             estado->encerrandoRound = true;
             estado->pausaRound = 2.0f;
             TocarEfeito(audio, SOM_KO);
@@ -395,6 +457,17 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
         if (p1VenceDecisivo) {
             p2->hp = 1;
             p2->estado = ESTADO_TONTO;
+            p2->hitboxAtiva = false;
+            p2->bloqueando = false;
+            p2->tempoBloqueio = 0.0f;
+            p2->etapaFatality = 0;
+            p2->timerFatality = 0;
+
+            // Interrompe o ataque vencedor: a hitbox residual nao pode acertar
+            // o perdedor atordoado nem bagunçar a deteccao de vencedor.
+            ColocarEmIdle(p1);
+
+            estado->vencedorFinishHim = 1;
             estado->emFinishHim = true;
             estado->timerFinishHim = TEMPO_FINISH_HIM;
             TocarEfeito(audio, SOM_FINISH_HIM);
@@ -403,6 +476,17 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
         if (p2VenceDecisivo) {
             p1->hp = 1;
             p1->estado = ESTADO_TONTO;
+            p1->hitboxAtiva = false;
+            p1->bloqueando = false;
+            p1->tempoBloqueio = 0.0f;
+            p1->etapaFatality = 0;
+            p1->timerFatality = 0;
+
+            // Interrompe o ataque vencedor: a hitbox residual nao pode acertar
+            // o perdedor atordoado nem bagunçar a deteccao de vencedor.
+            ColocarEmIdle(p2);
+
+            estado->vencedorFinishHim = 2;
             estado->emFinishHim = true;
             estado->timerFinishHim = TEMPO_FINISH_HIM;
             TocarEfeito(audio, SOM_FINISH_HIM);
@@ -419,6 +503,7 @@ bool AtualizarCombateRounds(EstadoJogo *estado, Personagem *p1, Personagem *p2, 
             estado->roundsP2++;
         }
 
+        estado->vencedorFinishHim = 0;
         estado->encerrandoRound = true;
         estado->pausaRound = 2.0f; // 2 segundos mostrando o resultado do round antes de trocar
         // Quem ficou em pe (ou ambos, no caso de tempo esgotado) espera em idle

@@ -130,8 +130,10 @@ static int IndiceAnimacaoParaEstado(const VisualPersonagem *visual, const Person
         }
         break;
 
-    // Atordoado ("finish him"): usa o dano medio quando nao ha animacao propria
+    // Atordoado ("finish him"): o Blanka usa a animacao stunted em loop;
+    // os demais lutadores caem no dano medio.
     case ESTADO_TONTO:
+        AdicionarCandidato(candidatos, &quantidade, ANIM_TONTO);
         AdicionarCandidato(candidatos, &quantidade, ANIM_HIT_BAIXO);
         AdicionarCandidato(candidatos, &quantidade, ANIM_HIT);
         break;

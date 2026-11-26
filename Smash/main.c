@@ -150,7 +150,7 @@ static const ConfiguracaoVisualPersonagem VISUAL_DIO = {
     .direcaoArte = OLHANDO_DIREITA,
 };
 
-// Folhas do BLANKA (blanka-stunted nao e usada no momento)
+// Folhas do BLANKA (a blanka-stunted e usada no FINISH HIM)
 static const DefinicaoFolhaSprite FOLHAS_BLANKA[] = {
     {
         .caminho = "animations/Blanka/blanka-idle-sheet.png",
@@ -195,6 +195,11 @@ static const DefinicaoFolhaSprite FOLHAS_BLANKA[] = {
     {
         .caminho = "animations/Blanka/blanka-jumping-sheet.png",
         .colunas = 7,
+        .linhas = 1,
+    },
+    {
+        .caminho = "animations/Blanka/blanka-stunted-sheet.png",
+        .colunas = 5,
         .linhas = 1,
     },
 };
@@ -268,6 +273,15 @@ static const DefinicaoAnimacaoPersonagem ANIMACOES_BLANKA[] = {
         .duracaoFrame = 0.04f, // 5 frames efetivos (3 ida + 2 volta) = 0.2s
         .loop = false,
         .pingPong = true,
+    },
+    {
+        .id = ANIM_TONTO, // blanka-stunted: loop durante o FINISH HIM
+        .folha = 9,
+        .linha = 0,
+        .colunaInicial = 0,
+        .quantidadeFrames = 5,
+        .duracaoFrame = 0.12f,
+        .loop = true,
     },
     {
         .id = ANIM_KO,
@@ -407,8 +421,8 @@ int main(void)
                 // Só processa golpes e movimento quando não estiver na pausa ("ROUND X" / "K.O.") ou cena de Fatality
                 if (estado.pausaRound <= 0.0f && !estado.fatalityExecutado)
                 {
-                    AtualizarControles(&p1, &audio);
-                    AtualizarControles(&p2, &audio);
+                    AtualizarControles(&p1, &audio, deltaTime);
+                    AtualizarControles(&p2, &audio, deltaTime);
 
                     AtualizarOrientacao(&p1, &p2);
 

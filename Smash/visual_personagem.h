@@ -21,6 +21,7 @@ typedef enum
     ANIM_HIT_BAIXO,         // hit-mid: dano recebido de golpes baixos
     ANIM_HIT_ALTO,          // hit-up: dano recebido de golpes altos
     ANIM_HIT,               // dano generico (quando o lutador nao distingue a altura)
+    ANIM_TONTO,             // atordoado no FINISH HIM (Blanka usa a folha stunted)
     ANIM_KO,                // defeat
     ANIM_TOTAL
 } IdAnimacaoPersonagem;

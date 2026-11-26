@@ -34,8 +34,7 @@
 #define TEMPO_MAXIMO_ROUND 67.0f
 
 // Macros para BONUS-01 (Bloqueio) e BONUS-03 (Combos)
-#define FATOR_DANO_BLOQUEIO 0.25f   // Bloqueio reduz o dano para 25% (75% de redução)
-#define TEMPO_BLOQUEIO 8            // Frames de recuperação após defender um golpe
+#define DURACAO_BLOQUEIO 0.5f       // Janela de bloqueio ao recuar (500 ms)
 #define MULTIPLICADOR_COMBO 0.15f   // +15% de bônus de dano por hit consecutivo no combo
 #define JANELA_COMBO 45             // Frames para manter o contador de combo visível/ativo
 
@@ -118,6 +117,7 @@ typedef struct Personagem
     bool hitboxAtiva;
 
     bool bloqueando;
+    float tempoBloqueio; // Tempo restante do estado de bloqueio, em segundos
     bool levouGolpeAlto; // true se o ultimo golpe recebido mirou em cima (escolhe a animacao de dano)
     bool golpeAplicado;  // true quando o ataque atual ja conectou (cada ataque acerta uma unica vez)
     int contadorCombo;
@@ -161,6 +161,7 @@ typedef struct EstadoJogo
     bool sairJogo;
     bool emFinishHim;
     float timerFinishHim;
+    int vencedorFinishHim; // 1 = P1, 2 = P2, 0 = nenhum (fixa quem venceu o round decisivo)
     bool fatalityExecutado;
     float timerEfeitoFatality;
     Vector2 posicaoFatality;

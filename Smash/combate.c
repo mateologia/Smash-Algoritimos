@@ -73,11 +73,19 @@ void InicializarPersonagens(Personagem *p1, Personagem *p2)
     AtualizarCaixas(p2);
 }
 
-void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
+void AtualizarControles(Personagem *p, GerenciadorAudio *audio, float deltaTime)
 {
     p->direcaoMovimento = 0;
     p->bloqueando = false;
     p->agachado = false;
+
+    // O estado de bloqueio continua ativo por ate 500 ms depois de recuar.
+    if (p->tempoBloqueio > 0.0f)
+    {
+        p->tempoBloqueio -= deltaTime;
+        if (p->tempoBloqueio < 0.0f)
+            p->tempoBloqueio = 0.0f;
+    }
 
     if (p->tempoCombo > 0)
     {
@@ -158,32 +166,15 @@ void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
         }
     }
 
-    // Atualiza buffer de sequência para Fatality (BONUS-05: Baixo -> Baixo + Chute Alto)
-    if (p->timerFatality > 0)
-    {
-        p->timerFatality--;
-        if (p->timerFatality <= 0)
-        {
-            p->etapaFatality = 0;
-        }
-    }
+    // A sequência do Fatality (BONUS-05) é processada em AtualizarCombateRounds,
+    // durante o FINISH HIM, para que o segundo Baixo e o Chute Alto possam ser
+    // reconhecidos no mesmo frame.
 
     KeyboardKey teclaFrente = (p->direcao == OLHANDO_DIREITA) ? p->controles.direita : p->controles.esquerda;
     if (IsKeyPressed(p->controles.baixo))
     {
         p->etapaEspecial = 1;
         p->timerEspecial = JANELA_COMANDO_ESPECIAL;
-
-        if (p->etapaFatality == 1 && p->timerFatality > 0)
-        {
-            p->etapaFatality = 2;
-            p->timerFatality = JANELA_COMANDO_FATALITY;
-        }
-        else
-        {
-            p->etapaFatality = 1;
-            p->timerFatality = JANELA_COMANDO_FATALITY;
-        }
     }
     else if (p->etapaEspecial == 1 && IsKeyPressed(teclaFrente))
     {
@@ -197,6 +188,12 @@ void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
     bool acionarSocoAlto = IsKeyPressed(p->controles.socoAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_7));
     bool acionarChuteBaixo = IsKeyPressed(p->controles.chuteBaixo) || (!ehJogador1 && IsKeyPressed(KEY_KP_5));
     bool acionarChuteAlto = IsKeyPressed(p->controles.chuteAlto) || (!ehJogador1 && IsKeyPressed(KEY_KP_8));
+
+    // Atacar interrompe a janela de bloqueio: ela não deve voltar depois do golpe.
+    if (acionarSocoBaixo || acionarSocoAlto || acionarChuteBaixo || acionarChuteAlto)
+    {
+        p->tempoBloqueio = 0.0f;
+    }
 
     if ((acionarSocoBaixo || acionarSocoAlto) && p->etapaEspecial == 2)
     {
@@ -242,6 +239,7 @@ void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
     if (noChao && IsKeyPressed(p->controles.cima))
     {
         p->velocidadeY = FORCA_PULO;
+        p->tempoBloqueio = 0.0f;
         noChao = false;
     }
     else if (noChao && IsKeyDown(p->controles.baixo))
@@ -249,13 +247,15 @@ void AtualizarControles(Personagem *p, GerenciadorAudio *audio)
         p->agachado = true;
     }
 
-    // Bloqueio (BONUS-01): segurar para trás em relação ao oponente
+    // Bloqueio (BONUS-01): recuar renova uma janela de 500 ms. Ao soltar a
+    // direção para trás, o estado continua ativo até o temporizador zerar.
     bool segurandoTras = (p->direcao == OLHANDO_DIREITA && IsKeyDown(p->controles.esquerda)) ||
                          (p->direcao == OLHANDO_ESQUERDA && IsKeyDown(p->controles.direita));
     if (segurandoTras && noChao)
     {
-        p->bloqueando = true;
+        p->tempoBloqueio = DURACAO_BLOQUEIO;
     }
+    p->bloqueando = (p->tempoBloqueio > 0.0f) && noChao;
 
     // Movimentação horizontal (não anda enquanto está agachado)
     int direcaoHorizontal = 0;
@@ -348,46 +348,48 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor, Gerenciad
     }
     atacante->golpeAplicado = true;
 
+    // Nocauteados e atordoados do FINISH HIM nao recebem dano normal. Isso impede
+    // que a hitbox do golpe vencedor derrube o perdedor antes da hora (ou acerte
+    // o proprio vencedor por engano na troca de estado).
+    if (defensor->estado == ESTADO_KO || defensor->estado == ESTADO_TONTO)
+    {
+        atacante->hitboxAtiva = false;
+        return;
+    }
+
+    // BONUS-01: bloqueio perfeito. Nao ha dano, hitstun nem progresso de combo.
+    if (defensor->bloqueando)
+    {
+        atacante->contadorCombo = 0;
+        atacante->tempoCombo = 0;
+        atacante->hitboxAtiva = false;
+        TocarEfeito(audio, SOM_BLOQUEIO);
+        return;
+    }
+
     int danoBase = ObterDanoAtaque(atacante->estado);
 
     // Guarda a altura do golpe recebido para que o visual escolha hit-mid (baixo) ou hit-up (alto)
     defensor->levouGolpeAlto = GolpeAlto(atacante->estado);
+    defensor->tempoBloqueio = 0.0f;
 
-    bool bloqueado = defensor->bloqueando;
-
-    if (bloqueado)
+    // BONUS-03: Encadeamento de combo se o oponente ainda estiver em hitstun ou na janela
+    if (defensor->estado == ESTADO_HIT || atacante->tempoCombo > 0)
     {
-        int danoBloqueado = (int)((float)danoBase * FATOR_DANO_BLOQUEIO);
-        if (danoBloqueado < 1)
-        {
-            danoBloqueado = 1;
-        }
-        defensor->hp -= danoBloqueado;
-        defensor->estado = ESTADO_HIT;
-        defensor->temporizador = TEMPO_BLOQUEIO;
-        atacante->contadorCombo = 0;
-        atacante->tempoCombo = 0;
+        atacante->contadorCombo++;
     }
     else
     {
-        // BONUS-03: Encadeamento de combo se o oponente ainda estiver em hitstun ou na janela
-        if (defensor->estado == ESTADO_HIT || atacante->tempoCombo > 0)
-        {
-            atacante->contadorCombo++;
-        }
-        else
-        {
-            atacante->contadorCombo = 1;
-        }
-        atacante->tempoCombo = JANELA_COMBO;
-
-        float multiplicador = 1.0f + ((float)(atacante->contadorCombo - 1) * MULTIPLICADOR_COMBO);
-        int danoFinal = (int)((float)danoBase * multiplicador);
-
-        defensor->hp -= danoFinal;
-        defensor->estado = ESTADO_HIT;
-        defensor->temporizador = TEMPO_HIT;
+        atacante->contadorCombo = 1;
     }
+    atacante->tempoCombo = JANELA_COMBO;
+
+    float multiplicador = 1.0f + ((float)(atacante->contadorCombo - 1) * MULTIPLICADOR_COMBO);
+    int danoFinal = (int)((float)danoBase * multiplicador);
+
+    defensor->hp -= danoFinal;
+    defensor->estado = ESTADO_HIT;
+    defensor->temporizador = TEMPO_HIT;
 
     atacante->hitboxAtiva = false;
 
@@ -396,6 +398,8 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor, Gerenciad
     {
         defensor->hp = 0;
         defensor->estado = ESTADO_KO;
+        defensor->bloqueando = false;
+        defensor->tempoBloqueio = 0.0f;
 
         // O golpe que mata o lutador substituto o som normal de impacto/bloqueio.
         // IDs de selecao: 0 = DIO, 1 = BLANKA.
@@ -403,10 +407,6 @@ static void AplicarImpacto(Personagem *atacante, Personagem *defensor, Gerenciad
             TocarEfeito(audio, SOM_MORTE_DIO);
         else
             TocarEfeito(audio, SOM_MORTE_BLANKA);
-    }
-    else if (bloqueado)
-    {
-        TocarEfeito(audio, SOM_BLOQUEIO);
     }
     else
     {
