@@ -5,6 +5,7 @@
 #include "visual_personagem.h"
 #include "audio.h"
 
+#include <math.h>
 #include <time.h>
 
 // Folhas do DIO (cada arquivo e uma unica linha de frames do mesmo tamanho)
@@ -330,23 +331,133 @@ static void AplicarVisuaisSelecionados(const EstadoJogo *estado, Personagem *p1,
     }
 }
 
-static void DesenharCenarioArena(void)
+typedef struct
 {
-    // Fundo base e piso estendido da arena (BONUS-06)
+    Texture2D texturaFundo;   // back-background.png (camada distante com parallax)
+    Texture2D texturaCenario; // background.png (camada principal logo atras dos lutadores)
+} CenarioArena;
+
+static Texture2D CarregarTexturaCenario(const char *caminhoRelativo)
+{
+    char caminhoResolvido[1024];
+    if (!ResolverCaminhoAsset(caminhoRelativo, caminhoResolvido, sizeof(caminhoResolvido)))
+    {
+        TraceLog(LOG_WARNING, "CENARIO: Asset nao encontrado: %s", caminhoRelativo);
+        return (Texture2D){0};
+    }
+
+    Texture2D textura = LoadTexture(caminhoResolvido);
+    if (textura.id == 0)
+    {
+        TraceLog(LOG_WARNING, "CENARIO: Falha ao carregar textura: %s", caminhoResolvido);
+        return (Texture2D){0};
+    }
+
+    SetTextureFilter(textura, TEXTURE_FILTER_POINT);
+    SetTextureWrap(textura, TEXTURE_WRAP_CLAMP);
+    return textura;
+}
+
+static void CarregarCenarioArena(CenarioArena *cenario)
+{
+    if (cenario == NULL)
+        return;
+
+    *cenario = (CenarioArena){0};
+    cenario->texturaFundo = CarregarTexturaCenario("scenarios/back-background.png");
+    cenario->texturaCenario = CarregarTexturaCenario("scenarios/background.png");
+}
+
+static void DescarregarCenarioArena(CenarioArena *cenario)
+{
+    if (cenario == NULL)
+        return;
+
+    if (cenario->texturaFundo.id != 0)
+    {
+        UnloadTexture(cenario->texturaFundo);
+        cenario->texturaFundo = (Texture2D){0};
+    }
+
+    if (cenario->texturaCenario.id != 0)
+    {
+        UnloadTexture(cenario->texturaCenario);
+        cenario->texturaCenario = (Texture2D){0};
+    }
+}
+
+static void DesenharCenarioPrototipo(void)
+{
+    // Fallback geometrico caso a textura principal do cenario nao seja carregada
     DrawRectangle(0, 0, (int)LARGURA_ARENA, (int)CHAO_Y, (Color){ 235, 238, 245, 255 });
     DrawRectangle(0, (int)CHAO_Y, (int)LARGURA_ARENA, (int)(SCREEN_HEIGHT - CHAO_Y), (Color){ 210, 214, 222, 255 });
 
-    // Pilares arquitetônicos de referência espacial ao longo dos 1600px
     for (int x = 100; x < (int)LARGURA_ARENA; x += 350)
     {
         DrawRectangle(x, 120, 48, (int)(CHAO_Y - 120), (Color){ 215, 220, 230, 255 });
         DrawRectangleLines(x, 120, 48, (int)(CHAO_Y - 120), (Color){ 185, 192, 205, 255 });
     }
 
-    // Limites laterais visuais da arena e linha do chão
     DrawRectangle(0, 0, 12, (int)CHAO_Y, DARKGRAY);
     DrawRectangle((int)LARGURA_ARENA - 12, 0, 12, (int)CHAO_Y, DARKGRAY);
     DrawLine(0, (int)CHAO_Y, (int)LARGURA_ARENA, (int)CHAO_Y, DARKGRAY);
+}
+
+static void DesenharCenarioFundo(const CenarioArena *cenario, const Camera2D *camera)
+{
+    if (cenario == NULL || cenario->texturaFundo.id == 0 || camera == NULL)
+        return;
+
+    Texture2D tex = cenario->texturaFundo;
+    float escala = (float)SCREEN_HEIGHT / (float)tex.height;
+    float largura = (float)tex.width * escala;
+    float deslocamentoCamera = camera->target.x - (LARGURA_ARENA * 0.5f);
+
+    float posX = ((float)SCREEN_WIDTH - largura) * 0.5f - (deslocamentoCamera * FATOR_PARALLAX_FUNDO);
+    if (largura >= (float)SCREEN_WIDTH)
+    {
+        if (posX > 0.0f)
+            posX = 0.0f;
+        if (posX + largura < (float)SCREEN_WIDTH)
+            posX = (float)SCREEN_WIDTH - largura;
+    }
+
+    Rectangle origem = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+    Rectangle destino = { posX, 0.0f, largura, (float)SCREEN_HEIGHT };
+    DrawTexturePro(tex, origem, destino, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+}
+
+static void DesenharCenarioFrente(const CenarioArena *cenario, const Camera2D *camera)
+{
+    if (cenario == NULL || cenario->texturaCenario.id == 0 || camera == NULL)
+    {
+        DesenharCenarioPrototipo();
+        return;
+    }
+
+    Texture2D tex = cenario->texturaCenario;
+    float escala = (float)SCREEN_HEIGHT / (float)tex.height;
+    float larguraTile = (float)tex.width * escala;
+
+    // Ancorado simetricamente no meio da arena para que os pilares centrais
+    // emoldurem a posicao inicial dos dois jogadores.
+    float origemX = (LARGURA_ARENA - larguraTile) * 0.5f;
+    float esquerdaVisivel = camera->target.x - ((float)SCREEN_WIDTH * 0.5f);
+    int primeiroTile = (int)floorf((esquerdaVisivel - origemX) / larguraTile);
+    float x0 = origemX + ((float)primeiroTile * larguraTile);
+
+    Rectangle origem = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+    Rectangle destinoA = { x0, 0.0f, larguraTile, (float)SCREEN_HEIGHT };
+    Rectangle destinoB = { x0 + larguraTile, 0.0f, larguraTile, (float)SCREEN_HEIGHT };
+
+    DrawTexturePro(tex, origem, destinoA, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+    DrawTexturePro(tex, origem, destinoB, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+}
+
+static void DesenharTextoComSombra(const char *texto, int x, int y, int tamanhoFonte, Color cor)
+{
+    DrawText(texto, x + 1, y + 1, tamanhoFonte, BLACK);
+    DrawText(texto, x, y, tamanhoFonte, cor);
 }
 
 int main(void)
@@ -367,8 +478,10 @@ int main(void)
     Personagem p1 = {0}, p2 = {0};
     VisualPersonagem visualDio = {0};
     VisualPersonagem visualBlanka = {0};
+    CenarioArena cenario = {0};
 
     InicializarPersonagens(&p1, &p2);
+    CarregarCenarioArena(&cenario);
 
     if (!CarregarVisualPersonagem(&visualDio, &VISUAL_DIO))
     {
@@ -492,12 +605,15 @@ int main(void)
                 break;
 
             case TELA_COMBATE:
-                ClearBackground(RAYWHITE);
+                ClearBackground((Color){ 18, 22, 36, 255 });
+
+                // Camada mais distante do cenario (parallax lento em espaco de tela)
+                DesenharCenarioFundo(&cenario, &camera);
 
                 // --- MUNDO 2D COM CÂMERA DESLIZANTE (BONUS-06) ---
                 BeginMode2D(camera);
 
-                DesenharCenarioArena();
+                DesenharCenarioFrente(&cenario, &camera);
 
                 DesenharPersonagem(&p1);
                 DesenharPersonagem(&p2);
@@ -588,10 +704,11 @@ int main(void)
                     DrawText(textoComboP2, SCREEN_WIDTH - 50 - larguraComboP2, 105, 24, ORANGE);
                 }
 
-                // Instruções na tela
-                DrawText("P1: WASD (mover/pular/agachar) | C/F (socos) | V/G (chutes) | Especial: S -> D + C", 30, SCREEN_HEIGHT - 52, 14, DARKGRAY);
-                DrawText("P2: Setas (mover/pular/agachar) | N/J (socos) | M/K (chutes) | Especial: Baixo -> Esq + N", 30, SCREEN_HEIGHT - 30, 14, DARKGRAY);
-                DrawText("R: Reset | F1: Caixas", SCREEN_WIDTH - 175, SCREEN_HEIGHT - 30, 14, GRAY);
+                // Instruções na tela com fundo sombreado para legibilidade sobre o piso
+                DrawRectangle(16, SCREEN_HEIGHT - 58, SCREEN_WIDTH - 32, 48, Fade(BLACK, 0.6f));
+                DesenharTextoComSombra("P1: WASD (mover/pular/agachar) | C/F (socos) | V/G (chutes) | Especial: S -> D + C", 30, SCREEN_HEIGHT - 52, 14, RAYWHITE);
+                DesenharTextoComSombra("P2: Setas (mover/pular/agachar) | N/J (socos) | M/K (chutes) | Especial: Baixo -> Esq + N", 30, SCREEN_HEIGHT - 30, 14, RAYWHITE);
+                DesenharTextoComSombra("R: Reset | F1: Caixas", SCREEN_WIDTH - 175, SCREEN_HEIGHT - 30, 14, LIGHTGRAY);
                 break;
 
             case TELA_VITORIA:
@@ -606,6 +723,7 @@ int main(void)
     }
 
     DescarregarRecursosJogo(&estado);
+    DescarregarCenarioArena(&cenario);
     DescarregarVisualPersonagem(&visualDio);
     DescarregarVisualPersonagem(&visualBlanka);
     DescarregarAudio(&audio);

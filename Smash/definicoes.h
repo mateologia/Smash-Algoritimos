@@ -57,6 +57,7 @@
 // Macros para BONUS-06 (Cenário Dinâmico e Câmera 2D Deslizante)
 #define LARGURA_ARENA 1600.0f
 #define SUAVIZACAO_CAMERA 0.12f
+#define FATOR_PARALLAX_FUNDO 0.1f
 
 // Macro para BONUS-09 (Persistência de Histórico em .txt)
 #define ARQUIVO_HISTORICO "historico_partidas.txt"
